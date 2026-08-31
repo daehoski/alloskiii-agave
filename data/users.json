@@ -1,0 +1,18 @@
+[
+  {
+    "id": "34462594-f62b-45d4-8317-0c63b12bd78b",
+    "email": "alloskiii8@gmail.com",
+    "passwordHash": "d06c24294760bcf86bd567b07e9d59d1636e0c3f67c22bcb8c8563f132b59fc2dd0a034a09c5be4f5807cf4d0a83c21b839fce34b479a62bbd3956b8ba1a99ee",
+    "salt": "3522aea75dfbaf531444a9a7238f9321",
+    "role": "ADMIN",
+    "createdAt": "2026-08-31T23:25:21.704Z"
+  },
+  {
+    "id": "6cac2d91-1f80-4d66-bbf9-1a650e6c34f1",
+    "email": "sidusas12@gmail.com",
+    "passwordHash": "b69f6920926c1c4088d3a66d6ba318741151242fb51e9ee4ac214ed4161e231e4db7beca92f01cf52c505a2af84614e05a292595427d2d55d67768c4584172c7",
+    "salt": "8a86850e156ba8d3d43f9629846efabc",
+    "role": "USER",
+    "createdAt": "2026-08-31T23:26:45.617Z"
+  }
+]

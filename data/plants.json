@@ -1,0 +1,23 @@
+[
+  {
+    "title": "Akki",
+    "japaneseName": "ワニガメ",
+    "slug": "akki",
+    "number": "01",
+    "src": "/uploads/1788219501674-78bda143034c.jpg",
+    "category": "titanota",
+    "availability": "Private Collection (Drop TBA)",
+    "id": 5,
+    "createdAt": "2026-08-31T23:38:24.987Z",
+    "span": "col-span-12 md:col-span-6 lg:col-span-5",
+    "height": "h-[450px] lg:h-[500px]",
+    "photos": [
+      {
+        "id": "akki-photo-1",
+        "date": "2026.09.01",
+        "src": "/uploads/1788219501674-78bda143034c.jpg",
+        "note": "초기 입고 및 활착 기록"
+      }
+    ]
+  }
+]
