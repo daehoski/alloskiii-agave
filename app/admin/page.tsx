@@ -6,15 +6,37 @@ import Image from "next/image"
 import Link from "next/link"
 import { NavBar } from "@/components/nav-bar"
 import { CATEGORIES, type PlantItem, type PlantPhotoRecord } from "@/lib/plants-data"
+import { JOURNAL_CATEGORIES, type JournalPost } from "@/lib/journal-data"
 
 export default function AdminDashboardPage() {
   const router = useRouter()
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string; role?: string } | null>(null)
   const [loadingUser, setLoadingUser] = useState(true)
 
+  // Main Section Tab
+  const [adminTab, setAdminTab] = useState<"plants" | "journal">("plants")
+
+  // Plants State
   const [plants, setPlants] = useState<PlantItem[]>([])
   const [deletedPlants, setDeletedPlants] = useState<PlantItem[]>([])
   const [loadingPlants, setLoadingPlants] = useState(true)
+
+  // Journal State
+  const [journalPosts, setJournalPosts] = useState<JournalPost[]>([])
+  const [loadingJournal, setLoadingJournal] = useState(true)
+  const [editingJournalId, setEditingJournalId] = useState<number | null>(null)
+
+  // Journal Form State
+  const [journalTitle, setJournalTitle] = useState("")
+  const [journalSubtitle, setJournalSubtitle] = useState("")
+  const [journalSlug, setJournalSlug] = useState("")
+  const [journalDate, setJournalDate] = useState(new Date().toISOString().slice(0, 10).replace(/-/g, "."))
+  const [journalCategory, setJournalCategory] = useState("cultivation")
+  const [journalCover, setJournalCover] = useState("")
+  const [journalContent, setJournalContent] = useState("")
+  const [journalReadTime, setJournalReadTime] = useState("3 min read")
+  const [uploadingJournalCover, setUploadingJournalCover] = useState(false)
+  const [submittingJournal, setSubmittingJournal] = useState(false)
 
   // Modals & Panels
   const [showTrashModal, setShowTrashModal] = useState(false)
@@ -29,7 +51,7 @@ export default function AdminDashboardPage() {
   const [uploadingGrowthPhoto, setUploadingGrowthPhoto] = useState(false)
   const [submittingGrowthPhoto, setSubmittingGrowthPhoto] = useState(false)
 
-  // Form State
+  // Plant Form State
   const [title, setTitle] = useState("")
   const [japaneseName, setJapaneseName] = useState("")
   const [slug, setSlug] = useState("")
@@ -49,7 +71,9 @@ export default function AdminDashboardPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const growthFileInputRef = useRef<HTMLInputElement>(null)
+  const journalFileInputRef = useRef<HTMLInputElement>(null)
   const formRef = useRef<HTMLDivElement>(null)
+  const journalFormRef = useRef<HTMLDivElement>(null)
 
   // Auth verification
   useEffect(() => {
@@ -93,7 +117,6 @@ export default function AdminDashboardPage() {
         }
       }
 
-      // Fetch deleted plants for trash
       const trashRes = await fetch("/api/plants/restore")
       const trashData = await trashRes.json()
       if (trashData.deletedPlants) {
@@ -106,9 +129,26 @@ export default function AdminDashboardPage() {
     }
   }
 
+  // Load journal posts
+  const fetchJournal = async () => {
+    try {
+      setLoadingJournal(true)
+      const res = await fetch("/api/journal")
+      const data = await res.json()
+      if (data.posts) {
+        setJournalPosts(data.posts)
+      }
+    } catch (err) {
+      console.error("Failed to load journal:", err)
+    } finally {
+      setLoadingJournal(false)
+    }
+  }
+
   useEffect(() => {
     if (currentUser?.role === "ADMIN") {
       fetchPlants()
+      fetchJournal()
     }
   }, [currentUser])
 
@@ -136,7 +176,7 @@ export default function AdminDashboardPage() {
     }
   }
 
-  // Move Plant Order (Top, Up, Down)
+  // Move Plant Order
   const handleMovePlant = async (id: number, direction: "top" | "up" | "down", plantTitle: string) => {
     try {
       const res = await fetch("/api/plants/move", {
@@ -177,7 +217,7 @@ export default function AdminDashboardPage() {
     }
   }
 
-  // Cancel edit mode
+  // Cancel edit plant
   const cancelEdit = () => {
     setEditingPlantId(null)
     setTitle("")
@@ -205,6 +245,19 @@ export default function AdminDashboardPage() {
         .replace(/\s+/g, "-")
         .replace(/[^a-z0-9-]/g, "")
       setSlug(generated || val.toLowerCase().replace(/[^a-z0-9]/g, "-"))
+    }
+  }
+
+  // Auto-generate journal slug
+  const handleJournalTitleChange = (val: string) => {
+    setJournalTitle(val)
+    if (!editingJournalId && (!journalSlug || journalSlug === "")) {
+      const generated = val
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-가-힣]/g, "")
+      setJournalSlug(generated)
     }
   }
 
@@ -236,6 +289,31 @@ export default function AdminDashboardPage() {
       setFeedback({ type: "error", message: err.message || "Failed to upload image" })
     } finally {
       setUploading(false)
+    }
+  }
+
+  // Handle Journal Cover Upload
+  const handleJournalCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingJournalCover(true)
+    const formData = new FormData()
+    formData.append("file", file)
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Upload failed")
+      setJournalCover(data.url)
+    } catch (err: any) {
+      alert(err.message || "Failed to upload cover image")
+    } finally {
+      setUploadingJournalCover(false)
     }
   }
 
@@ -336,7 +414,6 @@ export default function AdminDashboardPage() {
 
     try {
       if (editingPlantId) {
-        // UPDATE (PUT)
         const res = await fetch(`/api/plants/${editingPlantId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -353,14 +430,11 @@ export default function AdminDashboardPage() {
         })
 
         const data = await res.json()
-        if (!res.ok) {
-          throw new Error(data.error || "Failed to update plant")
-        }
+        if (!res.ok) throw new Error(data.error || "Failed to update plant")
 
         setFeedback({ type: "success", message: `Successfully updated '${title}'` })
         cancelEdit()
       } else {
-        // CREATE (POST)
         const res = await fetch("/api/plants", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -377,9 +451,7 @@ export default function AdminDashboardPage() {
         })
 
         const data = await res.json()
-        if (!res.ok) {
-          throw new Error(data.error || "Failed to register plant")
-        }
+        if (!res.ok) throw new Error(data.error || "Failed to register plant")
 
         setFeedback({ type: "success", message: `Successfully registered '${title}'` })
         setTitle("")
@@ -398,7 +470,7 @@ export default function AdminDashboardPage() {
     }
   }
 
-  // Delete Plant with Undo Support
+  // Delete Plant
   const handleDeletePlant = async (id: number, plantTitle: string) => {
     if (!confirm(`Are you sure you want to delete '${plantTitle}'? (You can Undo it anytime)`)) return
 
@@ -407,9 +479,7 @@ export default function AdminDashboardPage() {
         method: "DELETE",
       })
 
-      if (!res.ok) {
-        throw new Error("Failed to delete plant")
-      }
+      if (!res.ok) throw new Error("Failed to delete plant")
 
       setFeedback({
         type: "undo",
@@ -419,6 +489,114 @@ export default function AdminDashboardPage() {
       if (editingPlantId === id) cancelEdit()
       if (growthModalPlant?.id === id) setGrowthModalPlant(null)
       fetchPlants()
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err.message })
+    }
+  }
+
+  // Journal Functions
+  const startEditJournal = (post: JournalPost) => {
+    setEditingJournalId(post.id)
+    setJournalTitle(post.title)
+    setJournalSubtitle(post.subtitle || "")
+    setJournalSlug(post.slug)
+    setJournalDate(post.date)
+    setJournalCategory(post.category)
+    setJournalCover(post.coverImage || "")
+    setJournalContent(post.content)
+    setJournalReadTime(post.readTime || "3 min read")
+
+    if (journalFormRef.current) {
+      journalFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" })
+    }
+  }
+
+  const cancelEditJournal = () => {
+    setEditingJournalId(null)
+    setJournalTitle("")
+    setJournalSubtitle("")
+    setJournalSlug("")
+    setJournalCover("")
+    setJournalContent("")
+    setJournalDate(new Date().toISOString().slice(0, 10).replace(/-/g, "."))
+    setJournalCategory("cultivation")
+    setJournalReadTime("3 min read")
+    if (journalFileInputRef.current) journalFileInputRef.current.value = ""
+  }
+
+  const handleSubmitJournal = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!journalTitle || !journalSlug || !journalContent) {
+      setFeedback({ type: "error", message: "Title, slug, and content are required for journal." })
+      return
+    }
+
+    setSubmittingJournal(true)
+    setFeedback(null)
+
+    try {
+      if (editingJournalId) {
+        const res = await fetch(`/api/journal/${editingJournalId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: journalTitle,
+            subtitle: journalSubtitle,
+            slug: journalSlug,
+            date: journalDate,
+            category: journalCategory,
+            coverImage: journalCover,
+            content: journalContent,
+            readTime: journalReadTime,
+          }),
+        })
+
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || "Failed to update journal post")
+
+        setFeedback({ type: "success", message: `Updated journal article '${journalTitle}'` })
+        cancelEditJournal()
+      } else {
+        const res = await fetch("/api/journal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: journalTitle,
+            subtitle: journalSubtitle,
+            slug: journalSlug,
+            date: journalDate,
+            category: journalCategory,
+            coverImage: journalCover,
+            content: journalContent,
+            readTime: journalReadTime,
+          }),
+        })
+
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || "Failed to publish journal post")
+
+        setFeedback({ type: "success", message: `Published journal article '${journalTitle}'` })
+        cancelEditJournal()
+      }
+
+      fetchJournal()
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err.message })
+    } finally {
+      setSubmittingJournal(false)
+    }
+  }
+
+  const handleDeleteJournal = async (id: number, postTitle: string) => {
+    if (!confirm(`Are you sure you want to delete article '${postTitle}'?`)) return
+
+    try {
+      const res = await fetch(`/api/journal/${id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete post")
+
+      setFeedback({ type: "success", message: `Deleted journal article '${postTitle}'` })
+      if (editingJournalId === id) cancelEditJournal()
+      fetchJournal()
     } catch (err: any) {
       setFeedback({ type: "error", message: err.message })
     }
@@ -480,7 +658,7 @@ export default function AdminDashboardPage() {
 
       <div className="w-full max-w-[1600px] mx-auto px-6 md:px-12">
         {/* Top Header */}
-        <div className="border-b border-border pb-8 mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="border-b border-border pb-8 mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-ping"></span>
@@ -492,28 +670,36 @@ export default function AdminDashboardPage() {
               </span>
             </div>
             <h1 className="font-serif text-4xl md:text-6xl tracking-tight">
-              PLANT ARCHIVE MANAGEMENT
+              ALLOSKIII MANAGEMENT
             </h1>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
-            {/* Trash Button */}
-            <button
-              type="button"
-              onClick={() => setShowTrashModal(true)}
-              className="px-3.5 py-2 border border-border bg-secondary/10 hover:bg-secondary/30 transition-colors flex items-center gap-2 cursor-pointer"
-            >
-              <span>🗑️ 휴지통 / 복구</span>
-              <span className="px-1.5 py-0.2 bg-background border border-border text-[10px]">
-                {deletedPlants.length}
-              </span>
-            </button>
+            {/* Trash Button (for plants) */}
+            {adminTab === "plants" && (
+              <button
+                type="button"
+                onClick={() => setShowTrashModal(true)}
+                className="px-3.5 py-2 border border-border bg-secondary/10 hover:bg-secondary/30 transition-colors flex items-center gap-2 cursor-pointer"
+              >
+                <span>🗑️ 휴지통 / 복구</span>
+                <span className="px-1.5 py-0.2 bg-background border border-border text-[10px]">
+                  {deletedPlants.length}
+                </span>
+              </button>
+            )}
 
             <Link
               href="/archive"
               className="px-3.5 py-2 border border-border hover:bg-secondary/20 transition-colors uppercase tracking-wider"
             >
               Public Archive ↗
+            </Link>
+            <Link
+              href="/journal"
+              className="px-3.5 py-2 border border-border hover:bg-secondary/20 transition-colors uppercase tracking-wider"
+            >
+              Public Journal ↗
             </Link>
             <button
               onClick={handleSignOut}
@@ -524,7 +710,33 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Feedback Alert with Undo Button */}
+        {/* Tab Switcher: Plants vs Journal */}
+        <div className="flex gap-4 border-b border-border mb-10 pb-4">
+          <button
+            type="button"
+            onClick={() => setAdminTab("plants")}
+            className={`px-6 py-3 font-serif text-lg md:text-xl italic transition-all cursor-pointer border ${
+              adminTab === "plants"
+                ? "border-foreground bg-foreground text-background font-semibold"
+                : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary/20"
+            }`}
+          >
+            🪴 식물 개체 관리 (Plants — {plants.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setAdminTab("journal")}
+            className={`px-6 py-3 font-serif text-lg md:text-xl italic transition-all cursor-pointer border ${
+              adminTab === "journal"
+                ? "border-foreground bg-foreground text-background font-semibold"
+                : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary/20"
+            }`}
+          >
+            📝 저널 글쓰기 & 관리 (Journal — {journalPosts.length})
+          </button>
+        </div>
+
+        {/* Feedback Alert */}
         {feedback && (
           <div
             className={`mb-8 p-4 border font-mono text-xs flex justify-between items-center ${
@@ -553,391 +765,673 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-          {/* Left Column: Register or Edit Plant Form */}
-          <div
-            ref={formRef}
-            className={`lg:col-span-5 border p-6 md:p-8 backdrop-blur-md transition-colors ${
-              editingPlantId
-                ? "border-primary/60 bg-primary/5"
-                : "border-border bg-secondary/10"
-            }`}
-          >
-            <div className="border-b border-border pb-4 mb-6 flex justify-between items-center">
-              <div>
-                <span className="text-xs uppercase tracking-widest font-mono block mb-1 text-primary">
-                  {editingPlantId ? "[ EDITING MODE / 개체 수정 ]" : "[ NEW ENTRY / 신규 등록 ]"}
-                </span>
-                <h2 className="font-serif text-2xl italic">
-                  {editingPlantId ? `Edit: ${title}` : "Register New Plant"}
-                </h2>
-              </div>
-              {editingPlantId && (
-                <button
-                  type="button"
-                  onClick={cancelEdit}
-                  className="text-xs font-mono text-muted-foreground hover:text-foreground border border-border px-2.5 py-1 cursor-pointer"
-                >
-                  Cancel Edit ✕
-                </button>
-              )}
-            </div>
-
-            <form onSubmit={handleSubmitForm} className="flex flex-col gap-5 text-xs">
-              <div>
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
-                  Plant Name (English) *
-                </label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => handleTitleChange(e.target.value)}
-                  placeholder="e.g. Agave Titanota 'Caesar'"
-                  required
-                  className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
-                  Japanese Cultivar Name
-                </label>
-                <input
-                  type="text"
-                  value={japaneseName}
-                  onChange={(e) => setJapaneseName(e.target.value)}
-                  placeholder="e.g. シーザー (凱撒)"
-                  className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors"
-                />
-              </div>
-
-              {/* Category Selection */}
-              <div>
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
-                  Category (품종 분류)
-                </label>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  {CATEGORIES.filter((c) => c.id !== "all").map((cat) => (
-                    <button
-                      key={cat.id}
-                      type="button"
-                      onClick={() => setCategory(cat.id)}
-                      className={`px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider transition-colors cursor-pointer ${
-                        category.toLowerCase() === cat.id
-                          ? "bg-foreground text-background font-semibold"
-                          : "border border-border text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  placeholder="titanota, oteroi, horrida, utahensis..."
-                  className="w-full bg-secondary/20 border border-border px-3.5 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors font-mono"
-                />
-              </div>
-
-              {/* Price Field */}
-              <div>
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
-                  Price (분양 가격 — <span className="text-primary/80">비워두면 숨김</span>)
-                </label>
-                <input
-                  type="text"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  placeholder="e.g. ₩150,000 또는 150,000원"
-                  className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors font-mono"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+        {/* TAB 1: PLANTS MANAGEMENT */}
+        {adminTab === "plants" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+            {/* Left Column: Register or Edit Plant Form */}
+            <div
+              ref={formRef}
+              className={`lg:col-span-5 border p-6 md:p-8 backdrop-blur-md transition-colors ${
+                editingPlantId
+                  ? "border-primary/60 bg-primary/5"
+                  : "border-border bg-secondary/10"
+              }`}
+            >
+              <div className="border-b border-border pb-4 mb-6 flex justify-between items-center">
                 <div>
-                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
-                    Slug (URL 주소명) *
-                  </label>
-                  <input
-                    type="text"
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
-                    placeholder="e.g. caesar"
-                    required
-                    className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors font-mono"
-                  />
+                  <span className="text-xs uppercase tracking-widest font-mono block mb-1 text-primary">
+                    {editingPlantId ? "[ EDITING MODE / 개체 수정 ]" : "[ NEW ENTRY / 신규 등록 ]"}
+                  </span>
+                  <h2 className="font-serif text-2xl italic">
+                    {editingPlantId ? `Edit: ${title}` : "Register New Plant"}
+                  </h2>
                 </div>
-
-                <div>
-                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
-                    Number (번호)
-                  </label>
-                  <input
-                    type="text"
-                    value={number}
-                    onChange={(e) => setNumber(e.target.value)}
-                    placeholder="e.g. 05"
-                    className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors font-mono"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
-                  Availability Status (분양 / 소장 상태)
-                </label>
-                <input
-                  type="text"
-                  value={availability}
-                  onChange={(e) => setAvailability(e.target.value)}
-                  placeholder="e.g. Private Collection (Drop TBA)"
-                  className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors mb-2"
-                />
-                {/* Quick Presets */}
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setAvailability("Private Collection (Drop TBA)")}
-                    className="text-[10px] font-mono border border-border px-2 py-0.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 cursor-pointer"
-                  >
-                    + 개인 소장 (Drop TBA)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAvailability("Available for Purchase")}
-                    className="text-[10px] font-mono border border-border px-2 py-0.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 cursor-pointer"
-                  >
-                    + 분양 가능 (Available)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAvailability("Sold Out")}
-                    className="text-[10px] font-mono border border-border px-2 py-0.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 cursor-pointer"
-                  >
-                    + 분양 완료 (Sold Out)
-                  </button>
-                </div>
-              </div>
-
-              {/* Photo Upload Box */}
-              <div>
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
-                  Cover Photo (대표 사진) *
-                </label>
-                <div className="border border-dashed border-border p-4 bg-secondary/20 text-center flex flex-col items-center justify-center gap-3">
-                  {imageUrl ? (
-                    <div className="relative w-full h-44 overflow-hidden border border-border group">
-                      <Image src={imageUrl} alt="Preview" fill className="object-cover" />
-                      <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <span className="text-[10px] font-mono uppercase tracking-widest text-foreground">
-                          Click below to change photo
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="py-4 text-muted-foreground">
-                      <p className="text-xs mb-1">Select or drop a photo here</p>
-                      <p className="text-[10px] font-mono text-muted-foreground/60">
-                        Supports JPG, PNG, WEBP
-                      </p>
-                    </div>
-                  )}
-
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    disabled={uploading}
-                    className="text-[11px] font-mono text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:border file:border-border file:bg-background file:text-foreground file:text-xs file:uppercase file:cursor-pointer hover:file:bg-secondary/40"
-                  />
-
-                  {uploading && (
-                    <span className="text-[10px] font-mono text-primary animate-pulse">
-                      Uploading to server...
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-3">
                 {editingPlantId && (
                   <button
                     type="button"
                     onClick={cancelEdit}
-                    className="w-1/3 py-3.5 border border-border text-foreground text-xs font-semibold uppercase tracking-widest hover:bg-secondary/30 transition-colors cursor-pointer"
+                    className="text-xs font-mono text-muted-foreground hover:text-foreground border border-border px-2.5 py-1 cursor-pointer"
                   >
-                    Cancel
+                    Cancel Edit ✕
                   </button>
                 )}
-                <button
-                  type="submit"
-                  disabled={submitting || uploading || !imageUrl}
-                  className={`py-3.5 bg-foreground text-background text-xs font-semibold uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer ${
-                    editingPlantId ? "w-2/3" : "w-full"
-                  }`}
-                >
-                  {submitting
-                    ? "Saving..."
-                    : editingPlantId
-                    ? "✓ Update Plant Entry"
-                    : "+ Register Plant Entry"}
-                </button>
               </div>
-            </form>
-          </div>
 
-          {/* Right Column: Existing Plants List & Order Management */}
-          <div className="lg:col-span-7 flex flex-col gap-6">
-            <div className="border-b border-border pb-4 flex justify-between items-end">
-              <div>
-                <span className="text-xs uppercase tracking-widest text-muted-foreground font-mono block mb-1">
-                  [ ACTIVE INVENTORY & REORDER ]
-                </span>
-                <h2 className="font-serif text-2xl italic">
-                  Registered Plants ({plants.length})
-                </h2>
-              </div>
-              <p className="text-[10px] font-mono text-muted-foreground">
-                * [🔝 1번] 버튼으로 1번 개체로 이동할 수 있습니다.
-              </p>
+              <form onSubmit={handleSubmitForm} className="flex flex-col gap-5 text-xs">
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                    Plant Name (English) *
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => handleTitleChange(e.target.value)}
+                    placeholder="e.g. Agave Titanota 'Caesar'"
+                    required
+                    className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                    Japanese Cultivar Name
+                  </label>
+                  <input
+                    type="text"
+                    value={japaneseName}
+                    onChange={(e) => setJapaneseName(e.target.value)}
+                    placeholder="e.g. シーザー (凱撒)"
+                    className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors"
+                  />
+                </div>
+
+                {/* Category Selection */}
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                    Category (품종 분류)
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {CATEGORIES.filter((c) => c.id !== "all").map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setCategory(cat.id)}
+                        className={`px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider transition-colors cursor-pointer ${
+                          category.toLowerCase() === cat.id
+                            ? "bg-foreground text-background font-semibold"
+                            : "border border-border text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    placeholder="titanota, oteroi, horrida, utahensis..."
+                    className="w-full bg-secondary/20 border border-border px-3.5 py-2 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors font-mono"
+                  />
+                </div>
+
+                {/* Price Field */}
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                    Price (분양 가격 — <span className="text-primary/80">비워두면 숨김</span>)
+                  </label>
+                  <input
+                    type="text"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="e.g. ₩150,000 또는 150,000원"
+                    className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors font-mono"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                      Slug (URL 주소명) *
+                    </label>
+                    <input
+                      type="text"
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value)}
+                      placeholder="e.g. caesar"
+                      required
+                      className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                      Number (번호)
+                    </label>
+                    <input
+                      type="text"
+                      value={number}
+                      onChange={(e) => setNumber(e.target.value)}
+                      placeholder="e.g. 05"
+                      className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                    Availability Status (분양 / 소장 상태)
+                  </label>
+                  <input
+                    type="text"
+                    value={availability}
+                    onChange={(e) => setAvailability(e.target.value)}
+                    placeholder="e.g. Private Collection (Drop TBA)"
+                    className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors mb-2"
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setAvailability("Private Collection (Drop TBA)")}
+                      className="text-[10px] font-mono border border-border px-2 py-0.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 cursor-pointer"
+                    >
+                      + 개인 소장 (Drop TBA)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAvailability("Available for Purchase")}
+                      className="text-[10px] font-mono border border-border px-2 py-0.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 cursor-pointer"
+                    >
+                      + 분양 가능 (Available)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAvailability("Sold Out")}
+                      className="text-[10px] font-mono border border-border px-2 py-0.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 cursor-pointer"
+                    >
+                      + 분양 완료 (Sold Out)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cover Photo */}
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                    Cover Photo (대표 사진) *
+                  </label>
+                  <div className="border border-dashed border-border p-4 bg-secondary/20 text-center flex flex-col items-center justify-center gap-3">
+                    {imageUrl ? (
+                      <div className="relative w-full h-44 overflow-hidden border border-border group">
+                        <Image src={imageUrl} alt="Preview" fill className="object-cover" />
+                        <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <span className="text-[10px] font-mono uppercase tracking-widest text-foreground">
+                            Click below to change photo
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-4 text-muted-foreground">
+                        <p className="text-xs mb-1">Select or drop a photo here</p>
+                        <p className="text-[10px] font-mono text-muted-foreground/60">
+                          Supports JPG, PNG, WEBP
+                        </p>
+                      </div>
+                    )}
+
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      disabled={uploading}
+                      className="text-[11px] font-mono text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:border file:border-border file:bg-background file:text-foreground file:text-xs file:uppercase file:cursor-pointer hover:file:bg-secondary/40"
+                    />
+
+                    {uploading && (
+                      <span className="text-[10px] font-mono text-primary animate-pulse">
+                        Uploading to server...
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-3">
+                  {editingPlantId && (
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className="w-1/3 py-3.5 border border-border text-foreground text-xs font-semibold uppercase tracking-widest hover:bg-secondary/30 transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={submitting || uploading || !imageUrl}
+                    className={`py-3.5 bg-foreground text-background text-xs font-semibold uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer ${
+                      editingPlantId ? "w-2/3" : "w-full"
+                    }`}
+                  >
+                    {submitting
+                      ? "Saving..."
+                      : editingPlantId
+                      ? "✓ Update Plant Entry"
+                      : "+ Register Plant Entry"}
+                  </button>
+                </div>
+              </form>
             </div>
 
-            {loadingPlants ? (
-              <div className="p-8 border border-border text-center text-xs font-mono text-muted-foreground animate-pulse">
-                Loading plants database...
+            {/* Right Column: Existing Plants List & Order Management */}
+            <div className="lg:col-span-7 flex flex-col gap-6">
+              <div className="border-b border-border pb-4 flex justify-between items-end">
+                <div>
+                  <span className="text-xs uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                    [ ACTIVE INVENTORY & REORDER ]
+                  </span>
+                  <h2 className="font-serif text-2xl italic">
+                    Registered Plants ({plants.length})
+                  </h2>
+                </div>
+                <p className="text-[10px] font-mono text-muted-foreground">
+                  * [🔝 1번] 버튼으로 1번 개체로 이동할 수 있습니다.
+                </p>
               </div>
-            ) : plants.length === 0 ? (
-              <div className="p-8 border border-border text-center text-xs font-mono text-muted-foreground">
-                No plants registered yet. Add your first plant using the form.
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {plants.map((p, index) => {
-                  const isCurrentEditing = editingPlantId === p.id
-                  const photoCount = p.photos && p.photos.length > 0 ? p.photos.length : 1
 
-                  return (
-                    <div
-                      key={p.id}
-                      className={`border p-4 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                        isCurrentEditing
-                          ? "border-primary bg-primary/10"
-                          : "border-border bg-secondary/10 hover:bg-secondary/20"
-                      }`}
-                    >
-                      {/* Plant Info */}
-                      <div className="flex items-center gap-4">
-                        <div className="relative w-16 h-16 shrink-0 border border-border overflow-hidden bg-secondary/30">
-                          <Image src={p.src} alt={p.title} fill className="object-cover" />
-                        </div>
-                        <div>
-                          <div className="flex items-baseline gap-2 mb-1">
-                            <span className="text-xs font-mono font-semibold text-primary">
-                              #{p.number}
-                            </span>
-                            <h3 className="font-serif text-base font-medium">{p.title}</h3>
-                            {p.category && (
-                              <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.2 border border-border text-muted-foreground">
-                                {p.category}
+              {loadingPlants ? (
+                <div className="p-8 border border-border text-center text-xs font-mono text-muted-foreground animate-pulse">
+                  Loading plants database...
+                </div>
+              ) : plants.length === 0 ? (
+                <div className="p-8 border border-border text-center text-xs font-mono text-muted-foreground">
+                  No plants registered yet. Add your first plant using the form.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {plants.map((p, index) => {
+                    const isCurrentEditing = editingPlantId === p.id
+                    const photoCount = p.photos && p.photos.length > 0 ? p.photos.length : 1
+
+                    return (
+                      <div
+                        key={p.id}
+                        className={`border p-4 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                          isCurrentEditing
+                            ? "border-primary bg-primary/10"
+                            : "border-border bg-secondary/10 hover:bg-secondary/20"
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="relative w-16 h-16 shrink-0 border border-border overflow-hidden bg-secondary/30">
+                            <Image src={p.src} alt={p.title} fill className="object-cover" />
+                          </div>
+                          <div>
+                            <div className="flex items-baseline gap-2 mb-1">
+                              <span className="text-xs font-mono font-semibold text-primary">
+                                #{p.number}
                               </span>
+                              <h3 className="font-serif text-base font-medium">{p.title}</h3>
+                              {p.category && (
+                                <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.2 border border-border text-muted-foreground">
+                                  {p.category}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground font-light mb-1">
+                              {p.japaneseName || "—"}
+                            </p>
+                            <div className="flex items-center gap-3">
+                              <span className="text-[10px] font-mono text-primary/70 uppercase">
+                                {p.availability || "Private"}
+                              </span>
+                              {p.price && (
+                                <span className="text-[10px] font-mono font-semibold text-foreground border-l border-border pl-3">
+                                  {p.price}
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setGrowthModalPlant(p)}
+                                className="text-[10px] font-mono text-emerald-400 border border-emerald-500/30 px-2 py-0.5 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                              >
+                                📷 성장 사진 ({photoCount}장) +
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-1.5 md:gap-2 self-end md:self-center">
+                          <div className="flex items-center gap-1 border-r border-border pr-2 mr-1">
+                            {index > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleMovePlant(p.id, "top", p.title)}
+                                title="1번으로 이동 (Top)"
+                                className="px-2 py-1 border border-primary/50 text-[10px] font-mono text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                              >
+                                🔝 1번
+                              </button>
+                            )}
+                            {index > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleMovePlant(p.id, "up", p.title)}
+                                title="위로 이동"
+                                className="px-2 py-1 border border-border text-[10px] font-mono hover:bg-secondary/40 transition-colors cursor-pointer"
+                              >
+                                ▲
+                              </button>
+                            )}
+                            {index < plants.length - 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleMovePlant(p.id, "down", p.title)}
+                                title="아래로 이동"
+                                className="px-2 py-1 border border-border text-[10px] font-mono hover:bg-secondary/40 transition-colors cursor-pointer"
+                              >
+                                ▼
+                              </button>
                             )}
                           </div>
-                          <p className="text-xs text-muted-foreground font-light mb-1">
-                            {p.japaneseName || "—"}
-                          </p>
-                          <div className="flex items-center gap-3">
-                            <span className="text-[10px] font-mono text-primary/70 uppercase">
-                              {p.availability || "Private"}
-                            </span>
-                            {p.price && (
-                              <span className="text-[10px] font-mono font-semibold text-foreground border-l border-border pl-3">
-                                {p.price}
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => setGrowthModalPlant(p)}
-                              className="text-[10px] font-mono text-emerald-400 border border-emerald-500/30 px-2 py-0.5 hover:bg-emerald-500/10 transition-colors cursor-pointer"
-                            >
-                              📷 성장 사진 ({photoCount}장) +
-                            </button>
-                          </div>
+
+                          <Link
+                            href={`/archive/${p.slug}`}
+                            target="_blank"
+                            className="px-2.5 py-1 border border-border text-[11px] font-mono hover:bg-secondary/40 transition-colors"
+                          >
+                            View ↗
+                          </Link>
+                          <button
+                            onClick={() => startEdit(p)}
+                            className="px-2.5 py-1 border border-primary/50 text-primary text-[11px] font-mono hover:bg-primary/10 transition-colors cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeletePlant(p.id, p.title)}
+                            className="px-2.5 py-1 border border-red-500/40 text-red-400 text-[11px] font-mono hover:bg-red-500/10 transition-colors cursor-pointer"
+                          >
+                            Delete
+                          </button>
                         </div>
                       </div>
-
-                      {/* Action Buttons: Reorder + Edit + Delete */}
-                      <div className="flex flex-wrap items-center gap-1.5 md:gap-2 self-end md:self-center">
-                        {/* Order Controls */}
-                        <div className="flex items-center gap-1 border-r border-border pr-2 mr-1">
-                          {index > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => handleMovePlant(p.id, "top", p.title)}
-                              title="1번으로 이동 (Top)"
-                              className="px-2 py-1 border border-primary/50 text-[10px] font-mono text-primary hover:bg-primary/20 transition-colors cursor-pointer"
-                            >
-                              🔝 1번
-                            </button>
-                          )}
-                          {index > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => handleMovePlant(p.id, "up", p.title)}
-                              title="위로 이동"
-                              className="px-2 py-1 border border-border text-[10px] font-mono hover:bg-secondary/40 transition-colors cursor-pointer"
-                            >
-                              ▲
-                            </button>
-                          )}
-                          {index < plants.length - 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleMovePlant(p.id, "down", p.title)}
-                              title="아래로 이동"
-                              className="px-2 py-1 border border-border text-[10px] font-mono hover:bg-secondary/40 transition-colors cursor-pointer"
-                            >
-                              ▼
-                            </button>
-                          )}
-                        </div>
-
-                        <Link
-                          href={`/archive/${p.slug}`}
-                          target="_blank"
-                          className="px-2.5 py-1 border border-border text-[11px] font-mono hover:bg-secondary/40 transition-colors"
-                        >
-                          View ↗
-                        </Link>
-                        <button
-                          onClick={() => startEdit(p)}
-                          className="px-2.5 py-1 border border-primary/50 text-primary text-[11px] font-mono hover:bg-primary/10 transition-colors cursor-pointer"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeletePlant(p.id, p.title)}
-                          className="px-2.5 py-1 border border-red-500/40 text-red-400 text-[11px] font-mono hover:bg-red-500/10 transition-colors cursor-pointer"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* TAB 2: JOURNAL WRITING & MANAGEMENT */}
+        {adminTab === "journal" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+            {/* Left Column: Write / Edit Journal Post Form */}
+            <div
+              ref={journalFormRef}
+              className={`lg:col-span-5 border p-6 md:p-8 backdrop-blur-md transition-colors ${
+                editingJournalId
+                  ? "border-emerald-500/60 bg-emerald-500/5"
+                  : "border-border bg-secondary/10"
+              }`}
+            >
+              <div className="border-b border-border pb-4 mb-6 flex justify-between items-center">
+                <div>
+                  <span className="text-xs uppercase tracking-widest font-mono block mb-1 text-emerald-400">
+                    {editingJournalId ? "[ EDITING ARTICLE / 저널 수정 ]" : "[ NEW ARTICLE / 새 글 작성 ]"}
+                  </span>
+                  <h2 className="font-serif text-2xl italic">
+                    {editingJournalId ? `Edit: ${journalTitle}` : "Write Journal Article"}
+                  </h2>
+                </div>
+                {editingJournalId && (
+                  <button
+                    type="button"
+                    onClick={cancelEditJournal}
+                    className="text-xs font-mono text-muted-foreground hover:text-foreground border border-border px-2.5 py-1 cursor-pointer"
+                  >
+                    Cancel Edit ✕
+                  </button>
+                )}
+              </div>
+
+              <form onSubmit={handleSubmitJournal} className="flex flex-col gap-5 text-xs">
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                    Article Title (글 제목) *
+                  </label>
+                  <input
+                    type="text"
+                    value={journalTitle}
+                    onChange={(e) => handleJournalTitleChange(e.target.value)}
+                    placeholder="e.g. The Mineral Ratio for Compact Titanota Rosettes"
+                    required
+                    className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                    Subtitle / Summary (한 줄 요약/부제목)
+                  </label>
+                  <input
+                    type="text"
+                    value={journalSubtitle}
+                    onChange={(e) => setJournalSubtitle(e.target.value)}
+                    placeholder="e.g. A balanced substrate study focusing on Akadama, Pumice, and Kanuma soil proportions."
+                    className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                      Slug (URL 주소명) *
+                    </label>
+                    <input
+                      type="text"
+                      value={journalSlug}
+                      onChange={(e) => setJournalSlug(e.target.value)}
+                      placeholder="e.g. soil-mixture-guide"
+                      required
+                      className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                      Published Date (날짜)
+                    </label>
+                    <input
+                      type="text"
+                      value={journalDate}
+                      onChange={(e) => setJournalDate(e.target.value)}
+                      placeholder="e.g. 2026.09.01"
+                      className="w-full bg-secondary/20 border border-border px-3.5 py-2.5 text-foreground font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Journal Category */}
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                    Category (분류 태그)
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {JOURNAL_CATEGORIES.filter((c) => c.id !== "all").map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setJournalCategory(cat.id)}
+                        className={`px-3 py-1.5 text-[11px] font-mono uppercase tracking-wider transition-colors cursor-pointer ${
+                          journalCategory.toLowerCase() === cat.id
+                            ? "bg-foreground text-background font-semibold"
+                            : "border border-border text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Cover Photo Upload */}
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                    Cover Photo (커버 대표 사진)
+                  </label>
+                  <div className="border border-dashed border-border p-4 bg-secondary/20 text-center flex flex-col items-center justify-center gap-3">
+                    {journalCover ? (
+                      <div className="relative w-full h-36 overflow-hidden border border-border group">
+                        <Image src={journalCover} alt="Journal Cover" fill className="object-cover" />
+                        <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <span className="text-[10px] font-mono uppercase tracking-widest text-foreground">
+                            Click below to change photo
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-2 text-muted-foreground">
+                        <p className="text-xs mb-1">Select cover photo for this article</p>
+                      </div>
+                    )}
+
+                    <input
+                      type="file"
+                      ref={journalFileInputRef}
+                      accept="image/*"
+                      onChange={handleJournalCoverUpload}
+                      disabled={uploadingJournalCover}
+                      className="text-[11px] font-mono text-muted-foreground file:mr-3 file:py-1 file:px-3 file:border file:border-border file:bg-background file:text-foreground file:text-xs file:cursor-pointer"
+                    />
+
+                    {uploadingJournalCover && (
+                      <span className="text-[10px] font-mono text-primary animate-pulse">
+                        Uploading cover...
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Article Content Textarea */}
+                <div>
+                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                    Article Body Content (본문 에세이 / 마크다운 지원) *
+                  </label>
+                  <textarea
+                    rows={12}
+                    value={journalContent}
+                    onChange={(e) => setJournalContent(e.target.value)}
+                    placeholder="Write your cultivation notes, tips, substrate recipes, or notices here..."
+                    required
+                    className="w-full bg-secondary/20 border border-border p-3.5 text-foreground leading-relaxed font-sans placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors font-light"
+                  />
+                  <p className="text-[10px] font-mono text-muted-foreground/70 mt-1">
+                    * ### 소제목, * 목록, 줄바꿈이 자동으로 서식화되어 우아하게 렌더링됩니다.
+                  </p>
+                </div>
+
+                <div className="flex gap-3 mt-3">
+                  {editingJournalId && (
+                    <button
+                      type="button"
+                      onClick={cancelEditJournal}
+                      className="w-1/3 py-3.5 border border-border text-foreground text-xs font-semibold uppercase tracking-widest hover:bg-secondary/30 transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={submittingJournal || uploadingJournalCover || !journalTitle || !journalContent}
+                    className={`py-3.5 bg-foreground text-background text-xs font-semibold uppercase tracking-widest hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer ${
+                      editingJournalId ? "w-2/3" : "w-full"
+                    }`}
+                  >
+                    {submittingJournal
+                      ? "Publishing..."
+                      : editingJournalId
+                      ? "✓ Update Article"
+                      : "✍️ Publish Journal Article"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Right Column: Existing Journal Posts List */}
+            <div className="lg:col-span-7 flex flex-col gap-6">
+              <div className="border-b border-border pb-4 flex justify-between items-end">
+                <div>
+                  <span className="text-xs uppercase tracking-widest text-muted-foreground font-mono block mb-1">
+                    [ PUBLISHED ESSAYS & NOTES ]
+                  </span>
+                  <h2 className="font-serif text-2xl italic">
+                    Journal Articles ({journalPosts.length})
+                  </h2>
+                </div>
+              </div>
+
+              {loadingJournal ? (
+                <div className="p-8 border border-border text-center text-xs font-mono text-muted-foreground animate-pulse">
+                  Loading journal articles...
+                </div>
+              ) : journalPosts.length === 0 ? (
+                <div className="p-8 border border-border text-center text-xs font-mono text-muted-foreground">
+                  No articles published yet. Write your first article using the form.
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {journalPosts.map((post) => {
+                    const isCurrentEditing = editingJournalId === post.id
+
+                    return (
+                      <div
+                        key={post.id}
+                        className={`border p-4 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                          isCurrentEditing
+                            ? "border-emerald-500 bg-emerald-500/10"
+                            : "border-border bg-secondary/10 hover:bg-secondary/20"
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          {post.coverImage && (
+                            <div className="relative w-16 h-16 shrink-0 border border-border overflow-hidden bg-secondary/30">
+                              <Image src={post.coverImage} alt={post.title} fill className="object-cover" />
+                            </div>
+                          )}
+                          <div>
+                            <div className="flex items-baseline gap-2 mb-1">
+                              <span className="text-[10px] font-mono text-muted-foreground">
+                                {post.date}
+                              </span>
+                              <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 border border-border text-muted-foreground">
+                                {post.category}
+                              </span>
+                            </div>
+                            <h3 className="font-serif text-base font-medium">{post.title}</h3>
+                            {post.subtitle && (
+                              <p className="text-xs text-muted-foreground font-light line-clamp-1 mt-0.5">
+                                {post.subtitle}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-end md:self-center">
+                          <Link
+                            href={`/journal/${post.slug}`}
+                            target="_blank"
+                            className="px-2.5 py-1 border border-border text-[11px] font-mono hover:bg-secondary/40 transition-colors"
+                          >
+                            Read ↗
+                          </Link>
+                          <button
+                            onClick={() => startEditJournal(post)}
+                            className="px-2.5 py-1 border border-emerald-500/50 text-emerald-400 text-[11px] font-mono hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteJournal(post.id, post.title)}
+                            className="px-2.5 py-1 border border-red-500/40 text-red-400 text-[11px] font-mono hover:bg-red-500/10 transition-colors cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Growth Photo Management Modal */}
       {growthModalPlant && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-2xl border border-border bg-background p-6 md:p-8 max-h-[90vh] overflow-y-auto flex flex-col gap-6 shadow-2xl">
-            {/* Modal Header */}
             <div className="flex justify-between items-start border-b border-border pb-4">
               <div>
                 <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 block mb-1">
@@ -959,7 +1453,6 @@ export default function AdminDashboardPage() {
               </button>
             </div>
 
-            {/* Add New Dated Photo Form */}
             <form
               onSubmit={handleAddGrowthPhotoSubmit}
               className="border border-border p-4 bg-secondary/10 flex flex-col gap-4 text-xs"
@@ -997,7 +1490,6 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              {/* Photo Upload for Growth */}
               <div>
                 <label className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground block mb-1">
                   사진 파일 업로드 *
@@ -1045,7 +1537,6 @@ export default function AdminDashboardPage() {
               </div>
             </form>
 
-            {/* Existing Growth Timeline Photos List */}
             <div>
               <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground block mb-3">
                 [ RECORDED TIMELINE / 등록된 날짜별 사진 목록 ({growthModalPlant.photos?.length || 0}) ]

@@ -7,6 +7,7 @@ export function NavBar() {
   const pathname = usePathname()
   const isHome = pathname === "/"
   const isArchive = pathname?.startsWith("/archive")
+  const isJournal = pathname?.startsWith("/journal")
 
   return (
     <header className="fixed top-0 left-0 w-full z-50 bg-transparent transition-colors pointer-events-none">
@@ -40,6 +41,16 @@ export function NavBar() {
             }`}
           >
             ARCHIVE
+          </Link>
+          <Link
+            href="/journal"
+            className={`transition-colors ${
+              isJournal
+                ? "text-foreground font-bold"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            JOURNAL
           </Link>
         </nav>
       </div>
