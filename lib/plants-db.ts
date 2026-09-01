@@ -1,50 +1,26 @@
-import fs from "fs"
-import path from "path"
 import crypto from "crypto"
 import { INITIAL_PLANTS, type PlantItem, type PlantPhotoRecord } from "./plants-data"
+import { readStorageJson, writeStorageJson } from "./storage-helper"
 
 export type { PlantItem, PlantPhotoRecord }
 
-const DATA_DIR = path.join(process.cwd(), "data")
-const DATA_FILE = path.join(DATA_DIR, "plants.json")
-const TRASH_FILE = path.join(DATA_DIR, "deleted_plants.json")
-
-function ensureDataFile() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true })
-  }
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(INITIAL_PLANTS, null, 2), "utf-8")
-  }
-  if (!fs.existsSync(TRASH_FILE)) {
-    fs.writeFileSync(TRASH_FILE, JSON.stringify([], null, 2), "utf-8")
-  }
-}
+const PLANTS_FILE = "plants.json"
+const TRASH_FILE = "deleted_plants.json"
 
 export function getAllPlants(): PlantItem[] {
-  try {
-    ensureDataFile()
-    const content = fs.readFileSync(DATA_FILE, "utf-8")
-    return JSON.parse(content)
-  } catch (error) {
-    console.error("Failed to read plants data:", error)
-    return INITIAL_PLANTS
-  }
+  return readStorageJson<PlantItem[]>(PLANTS_FILE, INITIAL_PLANTS)
 }
 
 export function getDeletedPlants(): PlantItem[] {
-  try {
-    ensureDataFile()
-    const content = fs.readFileSync(TRASH_FILE, "utf-8")
-    return JSON.parse(content)
-  } catch {
-    return []
-  }
+  return readStorageJson<PlantItem[]>(TRASH_FILE, [])
 }
 
 function saveDeletedPlants(items: PlantItem[]) {
-  ensureDataFile()
-  fs.writeFileSync(TRASH_FILE, JSON.stringify(items, null, 2), "utf-8")
+  writeStorageJson(TRASH_FILE, items)
+}
+
+function savePlants(items: PlantItem[]) {
+  writeStorageJson(PLANTS_FILE, items)
 }
 
 export function getPlantBySlug(slug: string): PlantItem | undefined {
@@ -53,7 +29,6 @@ export function getPlantBySlug(slug: string): PlantItem | undefined {
 }
 
 export function addPlant(data: Omit<PlantItem, "id" | "createdAt">): PlantItem {
-  ensureDataFile()
   const plants = getAllPlants()
   const nextId = plants.length > 0 ? Math.max(...plants.map((p) => p.id)) + 1 : 1
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, ".")
@@ -80,12 +55,11 @@ export function addPlant(data: Omit<PlantItem, "id" | "createdAt">): PlantItem {
   }
 
   plants.push(newPlant)
-  fs.writeFileSync(DATA_FILE, JSON.stringify(plants, null, 2), "utf-8")
+  savePlants(plants)
   return newPlant
 }
 
 export function updatePlant(id: number, data: Partial<Omit<PlantItem, "id">>): PlantItem | null {
-  ensureDataFile()
   const plants = getAllPlants()
   const index = plants.findIndex((p) => p.id === id)
   if (index === -1) return null
@@ -96,19 +70,18 @@ export function updatePlant(id: number, data: Partial<Omit<PlantItem, "id">>): P
     updatedAt: new Date().toISOString(),
   }
 
-  fs.writeFileSync(DATA_FILE, JSON.stringify(plants, null, 2), "utf-8")
+  savePlants(plants)
   return plants[index]
 }
 
 // Delete a plant and move it to trash for Undo
 export function deletePlant(id: number): PlantItem | null {
-  ensureDataFile()
   const plants = getAllPlants()
   const target = plants.find((p) => p.id === id)
   if (!target) return null
 
   const filtered = plants.filter((p) => p.id !== id)
-  fs.writeFileSync(DATA_FILE, JSON.stringify(filtered, null, 2), "utf-8")
+  savePlants(filtered)
 
   // Save to trash backup
   const trash = getDeletedPlants()
@@ -120,7 +93,6 @@ export function deletePlant(id: number): PlantItem | null {
 
 // Restore a plant from trash (Undo)
 export function restorePlant(id?: number): PlantItem | null {
-  ensureDataFile()
   const trash = getDeletedPlants()
   if (trash.length === 0) return null
 
@@ -140,19 +112,17 @@ export function restorePlant(id?: number): PlantItem | null {
   saveDeletedPlants(trash)
 
   const plants = getAllPlants()
-  // Ensure unique ID
   if (plants.some((p) => p.id === restored!.id)) {
     restored.id = Math.max(...plants.map((p) => p.id)) + 1
   }
 
   plants.push(restored)
-  fs.writeFileSync(DATA_FILE, JSON.stringify(plants, null, 2), "utf-8")
+  savePlants(plants)
   return restored
 }
 
 // Move plant position: "top", "up", "down"
 export function movePlant(id: number, direction: "top" | "up" | "down"): boolean {
-  ensureDataFile()
   const plants = getAllPlants()
   const index = plants.findIndex((p) => p.id === id)
   if (index === -1) return false
@@ -179,7 +149,7 @@ export function movePlant(id: number, direction: "top" | "up" | "down"): boolean
     p.number = num < 10 ? `0${num}` : `${num}`
   })
 
-  fs.writeFileSync(DATA_FILE, JSON.stringify(plants, null, 2), "utf-8")
+  savePlants(plants)
   return true
 }
 
@@ -191,7 +161,6 @@ export function addGrowthPhoto(
   note?: string,
   setAsMain: boolean = true
 ): PlantItem | null {
-  ensureDataFile()
   const plants = getAllPlants()
   const plant = plants.find((p) => p.id === plantId)
   if (!plant) return null
@@ -222,13 +191,12 @@ export function addGrowthPhoto(
   }
 
   plant.updatedAt = new Date().toISOString()
-  fs.writeFileSync(DATA_FILE, JSON.stringify(plants, null, 2), "utf-8")
+  savePlants(plants)
   return plant
 }
 
 // Delete a photo record from a plant
 export function deleteGrowthPhoto(plantId: number, photoId: string): PlantItem | null {
-  ensureDataFile()
   const plants = getAllPlants()
   const plant = plants.find((p) => p.id === plantId)
   if (!plant || !plant.photos) return null
@@ -240,6 +208,6 @@ export function deleteGrowthPhoto(plantId: number, photoId: string): PlantItem |
   }
 
   plant.updatedAt = new Date().toISOString()
-  fs.writeFileSync(DATA_FILE, JSON.stringify(plants, null, 2), "utf-8")
+  savePlants(plants)
   return plant
 }

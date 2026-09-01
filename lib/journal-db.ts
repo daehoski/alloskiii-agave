@@ -1,32 +1,13 @@
-import fs from "fs"
-import path from "path"
 import { INITIAL_JOURNAL_POSTS, type JournalPost } from "./journal-data"
+import { readStorageJson, writeStorageJson } from "./storage-helper"
 
 export type { JournalPost }
 
-const DATA_DIR = path.join(process.cwd(), "data")
-const JOURNAL_FILE = path.join(DATA_DIR, "journal.json")
-
-function ensureJournalFile() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true })
-  }
-  if (!fs.existsSync(JOURNAL_FILE)) {
-    fs.writeFileSync(JOURNAL_FILE, JSON.stringify(INITIAL_JOURNAL_POSTS, null, 2), "utf-8")
-  }
-}
+const JOURNAL_FILE = "journal.json"
 
 export function getAllPosts(): JournalPost[] {
-  try {
-    ensureJournalFile()
-    const content = fs.readFileSync(JOURNAL_FILE, "utf-8")
-    const posts: JournalPost[] = JSON.parse(content)
-    // Sort by date descending
-    return posts.sort((a, b) => b.date.localeCompare(a.date))
-  } catch (error) {
-    console.error("Failed to read journal posts:", error)
-    return INITIAL_JOURNAL_POSTS
-  }
+  const posts = readStorageJson<JournalPost[]>(JOURNAL_FILE, INITIAL_JOURNAL_POSTS)
+  return posts.sort((a, b) => b.date.localeCompare(a.date))
 }
 
 export function getPostBySlug(slug: string): JournalPost | undefined {
@@ -35,7 +16,6 @@ export function getPostBySlug(slug: string): JournalPost | undefined {
 }
 
 export function addPost(data: Omit<JournalPost, "id" | "createdAt">): JournalPost {
-  ensureJournalFile()
   const posts = getAllPosts()
   const nextId = posts.length > 0 ? Math.max(...posts.map((p) => p.id)) + 1 : 1
 
@@ -48,12 +28,11 @@ export function addPost(data: Omit<JournalPost, "id" | "createdAt">): JournalPos
   }
 
   posts.unshift(newPost)
-  fs.writeFileSync(JOURNAL_FILE, JSON.stringify(posts, null, 2), "utf-8")
+  writeStorageJson(JOURNAL_FILE, posts)
   return newPost
 }
 
 export function updatePost(id: number, data: Partial<Omit<JournalPost, "id">>): JournalPost | null {
-  ensureJournalFile()
   const posts = getAllPosts()
   const index = posts.findIndex((p) => p.id === id)
   if (index === -1) return null
@@ -64,15 +43,14 @@ export function updatePost(id: number, data: Partial<Omit<JournalPost, "id">>): 
     updatedAt: new Date().toISOString(),
   }
 
-  fs.writeFileSync(JOURNAL_FILE, JSON.stringify(posts, null, 2), "utf-8")
+  writeStorageJson(JOURNAL_FILE, posts)
   return posts[index]
 }
 
 export function deletePost(id: number): boolean {
-  ensureJournalFile()
   const posts = getAllPosts()
   const filtered = posts.filter((p) => p.id !== id)
   if (filtered.length === posts.length) return false
-  fs.writeFileSync(JOURNAL_FILE, JSON.stringify(filtered, null, 2), "utf-8")
+  writeStorageJson(JOURNAL_FILE, filtered)
   return true
 }

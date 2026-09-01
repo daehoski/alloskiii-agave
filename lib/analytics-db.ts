@@ -1,16 +1,15 @@
-import fs from "fs"
-import path from "path"
 import crypto from "crypto"
+import { readStorageJson, writeStorageJson } from "./storage-helper"
 
 export interface PageViewEvent {
   id: string
   path: string
   plantSlug?: string
-  referrer: string // e.g. "instagram", "direct", "google"
+  referrer: string
   device: "mobile" | "desktop"
-  timestamp: string // ISO string
-  date: string // "2026-09-01"
-  visitorHash: string // Daily hashed IP or session
+  timestamp: string
+  date: string
+  visitorHash: string
 }
 
 export interface AnalyticsSummary {
@@ -25,17 +24,7 @@ export interface AnalyticsSummary {
   recentEvents: { path: string; referrer: string; device: string; time: string }[]
 }
 
-const DATA_DIR = path.join(process.cwd(), "data")
-const ANALYTICS_FILE = path.join(DATA_DIR, "analytics.json")
-
-function ensureAnalyticsFile() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true })
-  }
-  if (!fs.existsSync(ANALYTICS_FILE)) {
-    fs.writeFileSync(ANALYTICS_FILE, JSON.stringify([], null, 2), "utf-8")
-  }
-}
+const ANALYTICS_FILE = "analytics.json"
 
 export function logPageView(data: {
   path: string
@@ -45,15 +34,12 @@ export function logPageView(data: {
   ip?: string
 }) {
   try {
-    ensureAnalyticsFile()
-    const content = fs.readFileSync(ANALYTICS_FILE, "utf-8")
-    const events: PageViewEvent[] = JSON.parse(content)
+    const events: PageViewEvent[] = readStorageJson<PageViewEvent[]>(ANALYTICS_FILE, [])
 
     const now = new Date()
     const dateStr = now.toISOString().slice(0, 10)
     const rawReferrer = (data.referrer || "").toLowerCase()
 
-    // Categorize referrer
     let referrerType = "Direct / Link"
     if (rawReferrer.includes("instagram") || rawReferrer.includes("ig")) {
       referrerType = "Instagram Story"
@@ -69,12 +55,10 @@ export function logPageView(data: {
       referrerType = "Other Web"
     }
 
-    // Detect device
     const ua = (data.userAgent || "").toLowerCase()
     const isMobile = /mobile|iphone|ipad|android|blackberry|iemobile|kindle/.test(ua)
     const device = isMobile ? "mobile" : "desktop"
 
-    // Visitor unique hash for the day
     const ip = data.ip || "unknown"
     const visitorHash = crypto
       .createHash("sha256")
@@ -94,10 +78,8 @@ export function logPageView(data: {
     }
 
     events.unshift(newEvent)
-
-    // Keep max last 5,000 events to manage file size
     const trimmed = events.slice(0, 5000)
-    fs.writeFileSync(ANALYTICS_FILE, JSON.stringify(trimmed, null, 2), "utf-8")
+    writeStorageJson(ANALYTICS_FILE, trimmed)
   } catch (error) {
     console.error("Analytics log error:", error)
   }
@@ -105,28 +87,19 @@ export function logPageView(data: {
 
 export function getAnalyticsSummary(): AnalyticsSummary {
   try {
-    ensureAnalyticsFile()
-    const content = fs.readFileSync(ANALYTICS_FILE, "utf-8")
-    const events: PageViewEvent[] = JSON.parse(content)
+    const events: PageViewEvent[] = readStorageJson<PageViewEvent[]>(ANALYTICS_FILE, [])
 
     const todayStr = new Date().toISOString().slice(0, 10)
     const todayEvents = events.filter((e) => e.date === todayStr)
 
-    // Unique visitors today
     const todayUniqueVisitors = new Set(todayEvents.map((e) => e.visitorHash)).size
-
-    // Total counts
     const todayPageViews = todayEvents.length
     const totalPageViews = events.length
-
-    // Instagram Referrals
     const instagramReferrals = events.filter((e) => e.referrer === "Instagram Story").length
 
-    // Mobile ratio
     const mobileCount = events.filter((e) => e.device === "mobile").length
     const mobilePercentage = totalPageViews > 0 ? Math.round((mobileCount / totalPageViews) * 100) : 100
 
-    // Top plants by view count
     const plantCounts: Record<string, number> = {}
     events.forEach((e) => {
       if (e.plantSlug) {
@@ -142,7 +115,6 @@ export function getAnalyticsSummary(): AnalyticsSummary {
       .sort((a, b) => b.views - a.views)
       .slice(0, 5)
 
-    // Top pages
     const pageCounts: Record<string, number> = {}
     events.forEach((e) => {
       pageCounts[e.path] = (pageCounts[e.path] || 0) + 1
@@ -152,7 +124,6 @@ export function getAnalyticsSummary(): AnalyticsSummary {
       .sort((a, b) => b.views - a.views)
       .slice(0, 5)
 
-    // Referrers breakdown
     const refCounts: Record<string, number> = {}
     events.forEach((e) => {
       refCounts[e.referrer] = (refCounts[e.referrer] || 0) + 1
@@ -161,7 +132,6 @@ export function getAnalyticsSummary(): AnalyticsSummary {
       .map(([source, count]) => ({ source, count }))
       .sort((a, b) => b.count - a.count)
 
-    // Recent 10 events
     const recentEvents = events.slice(0, 10).map((e) => {
       const time = new Date(e.timestamp).toLocaleTimeString("ko-KR", {
         hour: "2-digit",
