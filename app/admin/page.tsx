@@ -1824,6 +1824,48 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
+            {/* 7-Day Pageviews Trend Chart (CSS based) */}
+            <div className="border border-border bg-secondary/10 p-5 flex flex-col gap-4">
+              <span className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground">
+                지난 7일간 트래픽 추이 (7-Day Traffic Trend)
+              </span>
+              
+              {!stats?.dailyViews || stats.dailyViews.length === 0 ? (
+                <div className="h-32 flex items-center justify-center text-xs font-mono text-muted-foreground border border-dashed border-border/50">
+                  데이터 집계 중...
+                </div>
+              ) : (
+                <div className="flex items-end justify-between h-40 gap-2 pb-2 pt-6">
+                  {stats.dailyViews.map((day, i) => {
+                    // Find max views for chart scaling
+                    const maxViews = Math.max(...stats.dailyViews.map(d => d.views), 10)
+                    const height = `${Math.max((day.views / maxViews) * 100, 2)}%`
+                    const isToday = i === stats.dailyViews.length - 1
+                    
+                    return (
+                      <div key={day.date} className="flex-1 flex flex-col items-center justify-end gap-2 group relative">
+                        {/* Tooltip */}
+                        <div className="absolute -top-8 bg-background border border-border px-2 py-1 text-[10px] font-mono text-foreground opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none whitespace-nowrap">
+                          {day.views} Views / {day.visitors} Users
+                        </div>
+                        
+                        {/* Bar */}
+                        <div 
+                          className={`w-full max-w-12 transition-all duration-500 ease-out ${isToday ? 'bg-emerald-400/80' : 'bg-foreground/20 hover:bg-foreground/40'}`}
+                          style={{ height }}
+                        ></div>
+                        
+                        {/* Date Label */}
+                        <span className={`text-[9px] font-mono ${isToday ? 'text-emerald-400 font-bold' : 'text-muted-foreground'}`}>
+                          {isToday ? 'TODAY' : day.date}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* Bottom 2 Columns: Top Specimen Ranking + Live Activity Feed */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               {/* Left: Popular Specimen Ranking */}
@@ -1906,8 +1948,9 @@ export default function AdminDashboardPage() {
                           <span className="text-[10px] px-2 py-0.5 border border-border bg-secondary/30 text-muted-foreground">
                             {event.referrer}
                           </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {event.device === "mobile" ? "📱" : "💻"}
+                          <span className="text-[10px] text-muted-foreground bg-foreground/10 px-2 py-0.5 border border-border">
+                            {event.device.includes("iPhone") || event.device.includes("iPad") || event.device.includes("Android") || event.device.toLowerCase() === "mobile" ? "📱 " : "💻 "}
+                            {event.device}
                           </span>
                         </div>
                       </div>

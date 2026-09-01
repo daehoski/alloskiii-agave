@@ -6,7 +6,7 @@ export interface PageViewEvent {
   path: string
   plantSlug?: string
   referrer: string
-  device: "mobile" | "desktop"
+  device: string
   timestamp: string
   date: string
   visitorHash: string
@@ -22,6 +22,7 @@ export interface AnalyticsSummary {
   topPages: { path: string; views: number }[]
   referrers: { source: string; count: number }[]
   recentEvents: { path: string; referrer: string; device: string; time: string }[]
+  dailyViews: { date: string; views: number; visitors: number }[]
 }
 
 const ANALYTICS_FILE = "analytics.json"
@@ -47,8 +48,14 @@ export async function logPageView(data: {
     else if (rawReferrer.includes("t.co") || rawReferrer.includes("twitter") || rawReferrer.includes("x.com")) referrerType = "X (Twitter)"
     else if (rawReferrer !== "" && !rawReferrer.includes("localhost") && !rawReferrer.includes("alloskiii")) referrerType = "Other Web"
 
+    let deviceType = "Desktop"
     const ua = (data.userAgent || "").toLowerCase()
-    const isMobile = /mobile|iphone|ipad|android|blackberry|iemobile|kindle/.test(ua)
+    if (ua.includes("iphone")) deviceType = "iPhone"
+    else if (ua.includes("ipad")) deviceType = "iPad"
+    else if (ua.includes("android")) deviceType = "Android"
+    else if (ua.includes("mac os")) deviceType = "Mac"
+    else if (ua.includes("windows")) deviceType = "Windows"
+    else if (/mobile|blackberry|iemobile|kindle/.test(ua)) deviceType = "Mobile"
 
     const visitorHash = crypto.createHash("sha256")
       .update(`${data.ip || "unknown"}-${dateStr}-${ua}`)
@@ -59,7 +66,7 @@ export async function logPageView(data: {
       path: data.path,
       plantSlug: data.plantSlug,
       referrer: referrerType,
-      device: isMobile ? "mobile" : "desktop",
+      device: deviceType,
       timestamp: now.toISOString(),
       date: dateStr,
       visitorHash,
@@ -78,17 +85,36 @@ export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
     const todayEvents = events.filter((e) => e.date === todayStr)
 
     const todayUniqueVisitors = new Set(todayEvents.map((e) => e.visitorHash)).size
-    const mobileCount = events.filter((e) => e.device === "mobile").length
+    const mobileCount = events.filter((e) => ["iPhone", "iPad", "Android", "Mobile", "mobile"].includes(e.device)).length
 
     const plantCounts: Record<string, number> = {}
     const pageCounts: Record<string, number> = {}
     const refCounts: Record<string, number> = {}
+    
+    const dailyMap: Record<string, { views: number; hashes: Set<string> }> = {}
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const ds = d.toISOString().slice(0, 10)
+      dailyMap[ds] = { views: 0, hashes: new Set() }
+    }
 
     events.forEach((e) => {
       if (e.plantSlug) plantCounts[e.plantSlug] = (plantCounts[e.plantSlug] || 0) + 1
       pageCounts[e.path] = (pageCounts[e.path] || 0) + 1
       refCounts[e.referrer] = (refCounts[e.referrer] || 0) + 1
+      
+      if (dailyMap[e.date]) {
+        dailyMap[e.date].views++
+        dailyMap[e.date].hashes.add(e.visitorHash)
+      }
     })
+    
+    const dailyViews = Object.entries(dailyMap).map(([date, data]) => ({
+      date: date.slice(5).replace("-", "/"),
+      views: data.views,
+      visitors: data.hashes.size,
+    }))
 
     return {
       todayVisitors: todayUniqueVisitors || (todayEvents.length > 0 ? 1 : 0),
@@ -105,15 +131,16 @@ export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
       referrers: Object.entries(refCounts)
         .map(([source, count]) => ({ source, count }))
         .sort((a, b) => b.count - a.count),
-      recentEvents: events.slice(0, 10).map((e) => ({
+      recentEvents: events.slice(0, 15).map((e) => ({
         path: e.path,
         referrer: e.referrer,
         device: e.device,
         time: new Date(e.timestamp).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
       })),
+      dailyViews,
     }
   } catch (error) {
     console.error("Analytics summary error:", error)
-    return { todayVisitors: 0, todayPageViews: 0, totalPageViews: 0, instagramReferrals: 0, mobilePercentage: 0, topPlants: [], topPages: [], referrers: [], recentEvents: [] }
+    return { todayVisitors: 0, todayPageViews: 0, totalPageViews: 0, instagramReferrals: 0, mobilePercentage: 0, topPlants: [], topPages: [], referrers: [], recentEvents: [], dailyViews: [] }
   }
 }
