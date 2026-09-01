@@ -21,7 +21,7 @@ export async function PUT(request: Request, { params }: Props) {
     }
 
     const body = await request.json()
-    const { title, japaneseName, slug, number, src, availability, category, price } = body
+    const { title, japaneseName, slug, number, src, availability, category, price, coverPosition } = body
 
     const updated = await updatePlant(numericId, {
       title,
@@ -32,6 +32,7 @@ export async function PUT(request: Request, { params }: Props) {
       category: category || "titanota",
       price: price !== undefined ? (price ? price.trim() : "") : undefined,
       availability,
+      coverPosition: coverPosition || "center",
     })
 
     if (!updated) {

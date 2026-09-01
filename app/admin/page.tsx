@@ -65,6 +65,7 @@ export default function AdminDashboardPage() {
   const [price, setPrice] = useState("")
   const [availability, setAvailability] = useState("Private Collection (Drop TBA)")
   const [imageUrl, setImageUrl] = useState("")
+  const [coverPosition, setCoverPosition] = useState("center")
 
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -239,6 +240,7 @@ export default function AdminDashboardPage() {
     setPrice(plant.price || "")
     setAvailability(plant.availability || "Private Collection (Drop TBA)")
     setImageUrl(plant.src)
+    setCoverPosition(plant.coverPosition || "center")
     setFeedback(null)
 
     if (formRef.current) {
@@ -256,6 +258,7 @@ export default function AdminDashboardPage() {
     setCategory("titanota")
     setPrice("")
     setAvailability("Private Collection (Drop TBA)")
+    setCoverPosition("center")
     const maxNum = plants.length > 0 ? plants.length + 1 : 1
     setNumber(maxNum < 10 ? `0${maxNum}` : `${maxNum}`)
     if (fileInputRef.current) fileInputRef.current.value = ""
@@ -290,86 +293,45 @@ export default function AdminDashboardPage() {
     }
   }
 
-  // Client-side image fallback helper
-  const readFileAsDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const rawUrl = e.target?.result as string
-        // Resize with canvas if it's too large to save memory
-        const img = new (window as any).Image()
-        img.onload = () => {
-          const maxDim = 1400
-          let w = img.width
-          let h = img.height
-          if (w > maxDim || h > maxDim) {
-            if (w > h) {
-              h = Math.round((h * maxDim) / w)
-              w = maxDim
-            } else {
-              w = Math.round((w * maxDim) / h)
-              h = maxDim
-            }
-          }
-          const canvas = document.createElement("canvas")
-          canvas.width = w
-          canvas.height = h
-          const ctx = canvas.getContext("2d")
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, w, h)
-            resolve(canvas.toDataURL("image/jpeg", 0.88))
-            return
-          }
-          resolve(rawUrl)
-        }
-        img.onerror = () => resolve(rawUrl)
-        img.src = rawUrl
+  // Convert HEIC to JPEG in browser, then resize with canvas
+  const processImageFile = async (file: File): Promise<File> => {
+    const ext = file.name.toLowerCase()
+    if (ext.endsWith(".heic") || ext.endsWith(".heif") || file.type === "image/heic") {
+      try {
+        const heic2any = (await import("heic2any")).default
+        const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.88 }) as Blob
+        return new File([blob], file.name.replace(/\.heic|\.heif/i, ".jpg"), { type: "image/jpeg" })
+      } catch (err) {
+        console.error("HEIC conversion failed:", err)
       }
-      reader.onerror = () => resolve("")
-      reader.readAsDataURL(file)
-    })
+    }
+    return file
   }
 
   // Handle Main Image Upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const rawFile = e.target.files?.[0]
+    if (!rawFile) return
 
     setUploading(true)
-    setFeedback(null)
+    setFeedback({ type: "success", message: "Processing image..." })
 
     try {
+      const file = await processImageFile(rawFile)
       const formData = new FormData()
       formData.append("file", file)
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      })
-
+      const res = await fetch("/api/upload", { method: "POST", body: formData })
       const data = await res.json()
+
       if (res.ok && data.url) {
         setImageUrl(data.url)
         setFeedback({ type: "success", message: "Image uploaded successfully." })
       } else {
-        // Fallback to client-side data URL
-        const dataUrl = await readFileAsDataUrl(file)
-        if (dataUrl) {
-          setImageUrl(dataUrl)
-          setFeedback({ type: "success", message: "Image processed and ready." })
-        } else {
-          throw new Error("Failed to read image file")
-        }
+        throw new Error(data.error || "Upload failed")
       }
-    } catch {
-      // Robust client fallback
-      const dataUrl = await readFileAsDataUrl(file)
-      if (dataUrl) {
-        setImageUrl(dataUrl)
-        setFeedback({ type: "success", message: "Image processed and ready." })
-      } else {
-        setFeedback({ type: "error", message: "Failed to process image file" })
-      }
+    } catch (err: any) {
+      setFeedback({ type: "error", message: err.message || "Failed to upload image" })
     } finally {
       setUploading(false)
     }
@@ -377,30 +339,24 @@ export default function AdminDashboardPage() {
 
   // Handle Journal Cover Upload
   const handleJournalCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const rawFile = e.target.files?.[0]
+    if (!rawFile) return
 
     setUploadingJournalCover(true)
-
     try {
+      const file = await processImageFile(rawFile)
       const formData = new FormData()
       formData.append("file", file)
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      })
-
+      const res = await fetch("/api/upload", { method: "POST", body: formData })
       const data = await res.json()
       if (res.ok && data.url) {
         setJournalCover(data.url)
       } else {
-        const dataUrl = await readFileAsDataUrl(file)
-        if (dataUrl) setJournalCover(dataUrl)
+        throw new Error(data.error || "Upload failed")
       }
-    } catch {
-      const dataUrl = await readFileAsDataUrl(file)
-      if (dataUrl) setJournalCover(dataUrl)
+    } catch (err: any) {
+      alert(err.message || "Failed to upload cover")
     } finally {
       setUploadingJournalCover(false)
     }
@@ -408,30 +364,24 @@ export default function AdminDashboardPage() {
 
   // Handle Growth Photo Upload
   const handleGrowthFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const rawFile = e.target.files?.[0]
+    if (!rawFile) return
 
     setUploadingGrowthPhoto(true)
-
     try {
+      const file = await processImageFile(rawFile)
       const formData = new FormData()
       formData.append("file", file)
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      })
-
+      const res = await fetch("/api/upload", { method: "POST", body: formData })
       const data = await res.json()
       if (res.ok && data.url) {
         setGrowthPhotoUrl(data.url)
       } else {
-        const dataUrl = await readFileAsDataUrl(file)
-        if (dataUrl) setGrowthPhotoUrl(dataUrl)
+        throw new Error(data.error || "Upload failed")
       }
-    } catch {
-      const dataUrl = await readFileAsDataUrl(file)
-      if (dataUrl) setGrowthPhotoUrl(dataUrl)
+    } catch (err: any) {
+      alert(err.message || "Failed to upload photo")
     } finally {
       setUploadingGrowthPhoto(false)
     }
@@ -518,6 +468,7 @@ export default function AdminDashboardPage() {
             category: category || "titanota",
             price: price.trim(),
             availability,
+            coverPosition: coverPosition || "center",
           }),
         })
 
@@ -539,6 +490,7 @@ export default function AdminDashboardPage() {
             category: category || "titanota",
             price: price.trim(),
             availability,
+            coverPosition: coverPosition || "center",
           }),
         })
 
@@ -551,6 +503,7 @@ export default function AdminDashboardPage() {
         setSlug("")
         setImageUrl("")
         setPrice("")
+        setCoverPosition("center")
         if (fileInputRef.current) fileInputRef.current.value = ""
       }
 
@@ -1045,19 +998,77 @@ export default function AdminDashboardPage() {
                   </label>
                   <div className="border border-dashed border-border p-4 bg-secondary/20 text-center flex flex-col items-center justify-center gap-3">
                     {imageUrl ? (
-                      <div className="relative w-full h-44 overflow-hidden border border-border group">
-                        <Image src={imageUrl} alt="Preview" fill className="object-cover" />
-                        <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <span className="text-[10px] font-mono uppercase tracking-widest text-foreground">
-                            Click below to change photo
-                          </span>
+                      <div className="w-full flex flex-col gap-3">
+                        <div className="relative w-full h-48 overflow-hidden border border-border group bg-secondary/30">
+                          <Image
+                            src={imageUrl}
+                            alt="Preview"
+                            fill
+                            style={{ objectPosition: coverPosition }}
+                            className="object-cover transition-all duration-300"
+                          />
+                          <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-foreground">
+                              Click below to change photo
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Focus Position Controls */}
+                        <div className="w-full flex flex-col gap-2 pt-2 border-t border-border/40 text-left">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                              🖼️ 대문 사진 위치 (Focus Position)
+                            </span>
+                            <span className="text-[10px] font-mono text-emerald-400 font-bold">
+                              {coverPosition === "top" ? "상단 (Top)" : coverPosition === "bottom" ? "하단 (Bottom)" : "중앙 (Center)"}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setCoverPosition("top")}
+                              className={`py-1.5 px-2 text-[10px] font-mono uppercase tracking-wider border cursor-pointer transition-colors ${
+                                coverPosition === "top"
+                                  ? "bg-foreground text-background font-semibold border-foreground"
+                                  : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                              }`}
+                            >
+                              ⬆️ 상단 (Top)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCoverPosition("center")}
+                              className={`py-1.5 px-2 text-[10px] font-mono uppercase tracking-wider border cursor-pointer transition-colors ${
+                                coverPosition === "center"
+                                  ? "bg-foreground text-background font-semibold border-foreground"
+                                  : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                              }`}
+                            >
+                              🎯 중앙 (Center)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCoverPosition("bottom")}
+                              className={`py-1.5 px-2 text-[10px] font-mono uppercase tracking-wider border cursor-pointer transition-colors ${
+                                coverPosition === "bottom"
+                                  ? "bg-foreground text-background font-semibold border-foreground"
+                                  : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                              }`}
+                            >
+                              ⬇️ 하단 (Bottom)
+                            </button>
+                          </div>
+                          <p className="text-[9px] font-mono text-muted-foreground/80">
+                            * 아카이브/메인 카탈로그 카드에 사진이 들어갈 때 보여질 중심 위치입니다.
+                          </p>
                         </div>
                       </div>
                     ) : (
                       <div className="py-4 text-muted-foreground">
                         <p className="text-xs mb-1">Select or drop a photo here</p>
                         <p className="text-[10px] font-mono text-muted-foreground/60">
-                          Supports JPG, PNG, WEBP
+                          Supports JPG, PNG, WEBP, HEIC (iPhone)
                         </p>
                       </div>
                     )}
@@ -1147,7 +1158,13 @@ export default function AdminDashboardPage() {
                       >
                         <div className="flex items-center gap-4">
                           <div className="relative w-16 h-16 shrink-0 border border-border overflow-hidden bg-secondary/30">
-                            <Image src={p.src} alt={p.title} fill className="object-cover" />
+                            <Image
+                              src={p.src}
+                              alt={p.title}
+                              fill
+                              style={{ objectPosition: p.coverPosition || "center" }}
+                              className="object-cover"
+                            />
                           </div>
                           <div>
                             <div className="flex items-baseline gap-2 mb-1">

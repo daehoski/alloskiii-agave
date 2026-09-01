@@ -158,6 +158,7 @@ export function ArchiveFilterGrid({ initialPlants }: ArchiveFilterGridProps) {
                     src={displayImage}
                     alt={plant.title}
                     fill
+                    style={{ objectPosition: plant.coverPosition || "center" }}
                     className="object-cover transition-transform duration-700 ease-out group-hover:scale-105 md:grayscale md:group-hover:grayscale-0"
                   />
                   {plant.photos && plant.photos.length > 1 && (
