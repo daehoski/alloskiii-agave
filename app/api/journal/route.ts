@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { getAllPosts, addPost } from "@/lib/journal-db"
 import { getCurrentUser } from "@/lib/auth"
 
+export const dynamic = "force-dynamic"
+
 export async function GET() {
   const posts = await getAllPosts()
   return NextResponse.json({ posts })

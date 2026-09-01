@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { getAllPlants, addPlant } from "@/lib/plants-db"
 import { getCurrentUser } from "@/lib/auth"
 
+export const dynamic = "force-dynamic"
+
 export async function GET() {
   const plants = await getAllPlants()
   return NextResponse.json({ plants })
