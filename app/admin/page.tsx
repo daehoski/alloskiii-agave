@@ -290,6 +290,46 @@ export default function AdminDashboardPage() {
     }
   }
 
+  // Client-side image fallback helper
+  const readFileAsDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const rawUrl = e.target?.result as string
+        // Resize with canvas if it's too large to save memory
+        const img = new (window as any).Image()
+        img.onload = () => {
+          const maxDim = 1400
+          let w = img.width
+          let h = img.height
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w)
+              w = maxDim
+            } else {
+              w = Math.round((w * maxDim) / h)
+              h = maxDim
+            }
+          }
+          const canvas = document.createElement("canvas")
+          canvas.width = w
+          canvas.height = h
+          const ctx = canvas.getContext("2d")
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, w, h)
+            resolve(canvas.toDataURL("image/jpeg", 0.88))
+            return
+          }
+          resolve(rawUrl)
+        }
+        img.onerror = () => resolve(rawUrl)
+        img.src = rawUrl
+      }
+      reader.onerror = () => resolve("")
+      reader.readAsDataURL(file)
+    })
+  }
+
   // Handle Main Image Upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -298,24 +338,38 @@ export default function AdminDashboardPage() {
     setUploading(true)
     setFeedback(null)
 
-    const formData = new FormData()
-    formData.append("file", file)
-
     try {
+      const formData = new FormData()
+      formData.append("file", file)
+
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       })
 
       const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || "Upload failed")
+      if (res.ok && data.url) {
+        setImageUrl(data.url)
+        setFeedback({ type: "success", message: "Image uploaded successfully." })
+      } else {
+        // Fallback to client-side data URL
+        const dataUrl = await readFileAsDataUrl(file)
+        if (dataUrl) {
+          setImageUrl(dataUrl)
+          setFeedback({ type: "success", message: "Image processed and ready." })
+        } else {
+          throw new Error("Failed to read image file")
+        }
       }
-
-      setImageUrl(data.url)
-      setFeedback({ type: "success", message: "New image uploaded successfully." })
-    } catch (err: any) {
-      setFeedback({ type: "error", message: err.message || "Failed to upload image" })
+    } catch {
+      // Robust client fallback
+      const dataUrl = await readFileAsDataUrl(file)
+      if (dataUrl) {
+        setImageUrl(dataUrl)
+        setFeedback({ type: "success", message: "Image processed and ready." })
+      } else {
+        setFeedback({ type: "error", message: "Failed to process image file" })
+      }
     } finally {
       setUploading(false)
     }
@@ -327,20 +381,26 @@ export default function AdminDashboardPage() {
     if (!file) return
 
     setUploadingJournalCover(true)
-    const formData = new FormData()
-    formData.append("file", file)
 
     try {
+      const formData = new FormData()
+      formData.append("file", file)
+
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Upload failed")
-      setJournalCover(data.url)
-    } catch (err: any) {
-      alert(err.message || "Failed to upload cover image")
+      if (res.ok && data.url) {
+        setJournalCover(data.url)
+      } else {
+        const dataUrl = await readFileAsDataUrl(file)
+        if (dataUrl) setJournalCover(dataUrl)
+      }
+    } catch {
+      const dataUrl = await readFileAsDataUrl(file)
+      if (dataUrl) setJournalCover(dataUrl)
     } finally {
       setUploadingJournalCover(false)
     }
@@ -352,23 +412,26 @@ export default function AdminDashboardPage() {
     if (!file) return
 
     setUploadingGrowthPhoto(true)
-    const formData = new FormData()
-    formData.append("file", file)
 
     try {
+      const formData = new FormData()
+      formData.append("file", file)
+
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       })
 
       const data = await res.json()
-      if (!res.ok) {
-        throw new Error(data.error || "Upload failed")
+      if (res.ok && data.url) {
+        setGrowthPhotoUrl(data.url)
+      } else {
+        const dataUrl = await readFileAsDataUrl(file)
+        if (dataUrl) setGrowthPhotoUrl(dataUrl)
       }
-
-      setGrowthPhotoUrl(data.url)
-    } catch (err: any) {
-      alert(err.message || "Failed to upload photo")
+    } catch {
+      const dataUrl = await readFileAsDataUrl(file)
+      if (dataUrl) setGrowthPhotoUrl(dataUrl)
     } finally {
       setUploadingGrowthPhoto(false)
     }
