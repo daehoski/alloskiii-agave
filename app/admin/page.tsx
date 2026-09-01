@@ -1002,7 +1002,7 @@ export default function AdminDashboardPage() {
                     <input
                       type="file"
                       ref={fileInputRef}
-                      accept="image/*"
+                      accept="image/*,.heic,.HEIC"
                       onChange={handleFileUpload}
                       disabled={uploading}
                       className="text-[11px] font-mono text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:border file:border-border file:bg-background file:text-foreground file:text-xs file:uppercase file:cursor-pointer hover:file:bg-secondary/40"
@@ -1317,7 +1317,7 @@ export default function AdminDashboardPage() {
                     <input
                       type="file"
                       ref={journalFileInputRef}
-                      accept="image/*"
+                      accept="image/*,.heic,.HEIC"
                       onChange={handleJournalCoverUpload}
                       disabled={uploadingJournalCover}
                       className="text-[11px] font-mono text-muted-foreground file:mr-3 file:py-1 file:px-3 file:border file:border-border file:bg-background file:text-foreground file:text-xs file:cursor-pointer"
@@ -1714,7 +1714,7 @@ export default function AdminDashboardPage() {
                   <input
                     type="file"
                     ref={growthFileInputRef}
-                    accept="image/*"
+                    accept="image/*,.heic,.HEIC"
                     onChange={handleGrowthFileUpload}
                     disabled={uploadingGrowthPhoto}
                     className="text-[11px] font-mono text-muted-foreground file:mr-3 file:py-1 file:px-3 file:border file:border-border file:bg-background file:text-foreground file:text-xs file:cursor-pointer"
