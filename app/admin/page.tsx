@@ -7,14 +7,15 @@ import Link from "next/link"
 import { NavBar } from "@/components/nav-bar"
 import { CATEGORIES, type PlantItem, type PlantPhotoRecord } from "@/lib/plants-data"
 import { JOURNAL_CATEGORIES, type JournalPost } from "@/lib/journal-data"
+import type { AnalyticsSummary } from "@/lib/analytics-db"
 
 export default function AdminDashboardPage() {
   const router = useRouter()
   const [currentUser, setCurrentUser] = useState<{ id: string; email: string; role?: string } | null>(null)
   const [loadingUser, setLoadingUser] = useState(true)
 
-  // Main Section Tab
-  const [adminTab, setAdminTab] = useState<"plants" | "journal">("plants")
+  // Main Section Tab: plants | journal | analytics
+  const [adminTab, setAdminTab] = useState<"plants" | "journal" | "analytics">("plants")
 
   // Plants State
   const [plants, setPlants] = useState<PlantItem[]>([])
@@ -25,6 +26,10 @@ export default function AdminDashboardPage() {
   const [journalPosts, setJournalPosts] = useState<JournalPost[]>([])
   const [loadingJournal, setLoadingJournal] = useState(true)
   const [editingJournalId, setEditingJournalId] = useState<number | null>(null)
+
+  // Analytics State
+  const [stats, setStats] = useState<AnalyticsSummary | null>(null)
+  const [loadingStats, setLoadingStats] = useState(false)
 
   // Journal Form State
   const [journalTitle, setJournalTitle] = useState("")
@@ -145,12 +150,36 @@ export default function AdminDashboardPage() {
     }
   }
 
+  // Load analytics stats
+  const fetchAnalytics = async () => {
+    try {
+      setLoadingStats(true)
+      const res = await fetch("/api/analytics/stats")
+      const data = await res.json()
+      if (data.stats) {
+        setStats(data.stats)
+      }
+    } catch (err) {
+      console.error("Failed to load analytics:", err)
+    } finally {
+      setLoadingStats(false)
+    }
+  }
+
   useEffect(() => {
     if (currentUser?.role === "ADMIN") {
       fetchPlants()
       fetchJournal()
+      fetchAnalytics()
     }
   }, [currentUser])
+
+  // Refresh stats when switching to analytics tab
+  useEffect(() => {
+    if (adminTab === "analytics" && currentUser?.role === "ADMIN") {
+      fetchAnalytics()
+    }
+  }, [adminTab, currentUser])
 
   // Restore Plant (Undo)
   const handleRestorePlant = async (id?: number) => {
@@ -675,7 +704,7 @@ export default function AdminDashboardPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
-            {/* Trash Button (for plants) */}
+            {/* Trash Button */}
             {adminTab === "plants" && (
               <button
                 type="button"
@@ -710,29 +739,41 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Tab Switcher: Plants vs Journal */}
-        <div className="flex gap-4 border-b border-border mb-10 pb-4">
+        {/* Tab Switcher: Plants vs Journal vs Analytics */}
+        <div className="flex flex-wrap gap-3 border-b border-border mb-10 pb-4">
           <button
             type="button"
             onClick={() => setAdminTab("plants")}
-            className={`px-6 py-3 font-serif text-lg md:text-xl italic transition-all cursor-pointer border ${
+            className={`px-5 py-2.5 font-serif text-base md:text-lg italic transition-all cursor-pointer border ${
               adminTab === "plants"
                 ? "border-foreground bg-foreground text-background font-semibold"
                 : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary/20"
             }`}
           >
-            🪴 식물 개체 관리 (Plants — {plants.length})
+            🪴 식물 개체 관리 ({plants.length})
           </button>
           <button
             type="button"
             onClick={() => setAdminTab("journal")}
-            className={`px-6 py-3 font-serif text-lg md:text-xl italic transition-all cursor-pointer border ${
+            className={`px-5 py-2.5 font-serif text-base md:text-lg italic transition-all cursor-pointer border ${
               adminTab === "journal"
                 ? "border-foreground bg-foreground text-background font-semibold"
                 : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary/20"
             }`}
           >
-            📝 저널 글쓰기 & 관리 (Journal — {journalPosts.length})
+            📝 저널 글쓰기 ({journalPosts.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setAdminTab("analytics")}
+            className={`px-5 py-2.5 font-serif text-base md:text-lg italic transition-all cursor-pointer border flex items-center gap-2 ${
+              adminTab === "analytics"
+                ? "border-emerald-500 bg-emerald-500 text-black font-semibold"
+                : "border-border text-muted-foreground hover:text-foreground hover:bg-secondary/20"
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+            <span>📊 방문자 모니터링 (실시간)</span>
           </button>
         </div>
 
@@ -768,7 +809,7 @@ export default function AdminDashboardPage() {
         {/* TAB 1: PLANTS MANAGEMENT */}
         {adminTab === "plants" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-            {/* Left Column: Register or Edit Plant Form */}
+            {/* Form */}
             <div
               ref={formRef}
               className={`lg:col-span-5 border p-6 md:p-8 backdrop-blur-md transition-colors ${
@@ -1002,7 +1043,7 @@ export default function AdminDashboardPage() {
               </form>
             </div>
 
-            {/* Right Column: Existing Plants List & Order Management */}
+            {/* Plants List */}
             <div className="lg:col-span-7 flex flex-col gap-6">
               <div className="border-b border-border pb-4 flex justify-between items-end">
                 <div>
@@ -1146,7 +1187,6 @@ export default function AdminDashboardPage() {
         {/* TAB 2: JOURNAL WRITING & MANAGEMENT */}
         {adminTab === "journal" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
-            {/* Left Column: Write / Edit Journal Post Form */}
             <div
               ref={journalFormRef}
               className={`lg:col-span-5 border p-6 md:p-8 backdrop-blur-md transition-colors ${
@@ -1232,7 +1272,6 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                {/* Journal Category */}
                 <div>
                   <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
                     Category (분류 태그)
@@ -1255,7 +1294,6 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                {/* Cover Photo Upload */}
                 <div>
                   <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
                     Cover Photo (커버 대표 사진)
@@ -1293,7 +1331,6 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                {/* Article Content Textarea */}
                 <div>
                   <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
                     Article Body Content (본문 에세이 / 마크다운 지원) *
@@ -1306,9 +1343,6 @@ export default function AdminDashboardPage() {
                     required
                     className="w-full bg-secondary/20 border border-border p-3.5 text-foreground leading-relaxed font-sans placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors font-light"
                   />
-                  <p className="text-[10px] font-mono text-muted-foreground/70 mt-1">
-                    * ### 소제목, * 목록, 줄바꿈이 자동으로 서식화되어 우아하게 렌더링됩니다.
-                  </p>
                 </div>
 
                 <div className="flex gap-3 mt-3">
@@ -1338,7 +1372,6 @@ export default function AdminDashboardPage() {
               </form>
             </div>
 
-            {/* Right Column: Existing Journal Posts List */}
             <div className="lg:col-span-7 flex flex-col gap-6">
               <div className="border-b border-border pb-4 flex justify-between items-end">
                 <div>
@@ -1423,6 +1456,189 @@ export default function AdminDashboardPage() {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: REAL-TIME TRAFFIC & VISITORS MONITORING */}
+        {adminTab === "analytics" && (
+          <div className="flex flex-col gap-8">
+            {/* Header with Live Refresh Button */}
+            <div className="flex justify-between items-center border-b border-border pb-4">
+              <div>
+                <span className="text-xs uppercase tracking-widest text-emerald-400 font-mono block mb-1">
+                  [ LIVE TRAFFIC & VISITOR ANALYTICS ]
+                </span>
+                <h2 className="font-serif text-2xl md:text-3xl italic">
+                  실시간 방문자 & 인스타 유입 통계
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={fetchAnalytics}
+                disabled={loadingStats}
+                className="px-4 py-2 border border-emerald-500/50 text-emerald-400 text-xs font-mono uppercase tracking-wider hover:bg-emerald-500/10 transition-colors flex items-center gap-2 cursor-pointer"
+              >
+                <span>🔄 실시간 새로고침</span>
+                {loadingStats && <span className="animate-spin">⟳</span>}
+              </button>
+            </div>
+
+            {/* 4 Stat Metric Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+              <div className="border border-border bg-secondary/10 p-5 flex flex-col justify-between">
+                <span className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground block mb-2">
+                  오늘 방문자 수 (Unique)
+                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-serif text-4xl md:text-5xl font-medium text-foreground">
+                    {stats?.todayVisitors ?? 0}
+                  </span>
+                  <span className="text-xs font-mono text-emerald-400">명</span>
+                </div>
+                <div className="mt-3 flex items-center gap-2 text-[10px] font-mono text-emerald-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                  <span>실시간 집계 중</span>
+                </div>
+              </div>
+
+              <div className="border border-border bg-secondary/10 p-5 flex flex-col justify-between">
+                <span className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground block mb-2">
+                  오늘 페이지뷰 (Views)
+                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-serif text-4xl md:text-5xl font-medium text-foreground">
+                    {stats?.todayPageViews ?? 0}
+                  </span>
+                  <span className="text-xs font-mono text-muted-foreground">회 (누적 {stats?.totalPageViews ?? 0})</span>
+                </div>
+                <span className="text-[10px] font-mono text-muted-foreground mt-3">
+                  개체 및 저널 탐색 횟수
+                </span>
+              </div>
+
+              <div className="border border-pink-500/30 bg-pink-500/5 p-5 flex flex-col justify-between">
+                <span className="text-[10px] uppercase font-mono tracking-widest text-pink-400 block mb-2">
+                  인스타 스토리 유입 (Instagram)
+                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-serif text-4xl md:text-5xl font-medium text-pink-300">
+                    {stats?.instagramReferrals ?? 0}
+                  </span>
+                  <span className="text-xs font-mono text-pink-400">명</span>
+                </div>
+                <span className="text-[10px] font-mono text-pink-400/80 mt-3">
+                  인스타그램 프로필/스토리 링크
+                </span>
+              </div>
+
+              <div className="border border-border bg-secondary/10 p-5 flex flex-col justify-between">
+                <span className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground block mb-2">
+                  모바일 접속 비율 (Mobile)
+                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-serif text-4xl md:text-5xl font-medium text-foreground">
+                    {stats?.mobilePercentage ?? 100}%
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-muted-foreground mt-3">
+                  스마트폰 접속자 비중
+                </span>
+              </div>
+            </div>
+
+            {/* Bottom 2 Columns: Top Specimen Ranking + Live Activity Feed */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              {/* Left: Popular Specimen Ranking */}
+              <div className="lg:col-span-6 border border-border bg-secondary/10 p-6 flex flex-col gap-5">
+                <div className="flex justify-between items-baseline border-b border-border pb-3">
+                  <span className="text-xs font-mono uppercase tracking-widest text-foreground font-semibold">
+                    🏆 실시간 인기 개체 TOP 순위
+                  </span>
+                  <span className="text-[10px] font-mono text-muted-foreground">조회수 기준</span>
+                </div>
+
+                {!stats?.topPlants || stats.topPlants.length === 0 ? (
+                  <div className="py-12 text-center text-xs font-mono text-muted-foreground">
+                    아직 개체 조회 데이터가 쌓이지 않았습니다. (링크를 타고 방문하면 바로 뜹니다!)
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {stats.topPlants.map((plant, idx) => (
+                      <div key={plant.slug} className="border border-border/60 p-3 bg-secondary/20 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono text-sm font-bold text-emerald-400 w-6">
+                            #{idx + 1}
+                          </span>
+                          <div>
+                            <h4 className="font-serif text-base font-medium">{plant.title}</h4>
+                            <span className="text-[10px] font-mono text-muted-foreground">/archive/{plant.slug}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-mono text-sm font-semibold text-foreground">{plant.views}</span>
+                          <span className="text-[10px] font-mono text-muted-foreground ml-1">views</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Referrers */}
+                <div className="border-t border-border pt-4 mt-2">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground block mb-2">
+                    유입 경로 비율 (Referrers)
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {stats?.referrers.map((ref) => (
+                      <div key={ref.source} className="border border-border px-3 py-1.5 bg-background text-xs font-mono flex items-center gap-2">
+                        <span className="text-muted-foreground">{ref.source}:</span>
+                        <span className="text-foreground font-bold">{ref.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Live Activity Stream */}
+              <div className="lg:col-span-6 border border-border bg-secondary/10 p-6 flex flex-col gap-5">
+                <div className="flex justify-between items-baseline border-b border-border pb-3">
+                  <span className="text-xs font-mono uppercase tracking-widest text-foreground font-semibold flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span>실시간 방문자 로그 (Live Feed)</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-muted-foreground">최근 접속 10건</span>
+                </div>
+
+                {!stats?.recentEvents || stats.recentEvents.length === 0 ? (
+                  <div className="py-12 text-center text-xs font-mono text-muted-foreground">
+                    방문자 접속 대기 중...
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {stats.recentEvents.map((event, idx) => (
+                      <div
+                        key={idx}
+                        className="border border-border/50 p-2.5 bg-background/50 flex items-center justify-between text-xs font-mono"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] text-muted-foreground">{event.time}</span>
+                          <span className="text-foreground font-medium truncate max-w-[200px]">{event.path}</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] px-2 py-0.5 border border-border bg-secondary/30 text-muted-foreground">
+                            {event.referrer}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {event.device === "mobile" ? "📱" : "💻"}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

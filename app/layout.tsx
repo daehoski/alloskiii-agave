@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   generator: 'v0.app'
 }
 
+import { AnalyticsTracker } from "@/components/analytics-tracker"
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -20,6 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.variable} ${playfair.variable} font-sans antialiased bg-background text-foreground`}>
+        <AnalyticsTracker />
         {children}
       </body>
     </html>
