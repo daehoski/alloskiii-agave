@@ -67,6 +67,8 @@ export default function AdminDashboardPage() {
   const [imageUrl, setImageUrl] = useState("")
   const [coverPosX, setCoverPosX] = useState(50)
   const [coverPosY, setCoverPosY] = useState(50)
+  const [coverFit, setCoverFit] = useState<"cover" | "contain">("cover")
+  const [previewAspect, setPreviewAspect] = useState<"4/3" | "square" | "16/9">("4/3")
 
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -261,6 +263,7 @@ export default function AdminDashboardPage() {
       setCoverPosY(isNaN(y) ? 50 : Math.max(0, Math.min(100, y)))
     }
 
+    setCoverFit(plant.coverFit || "cover")
     setFeedback(null)
 
     if (formRef.current) {
@@ -280,6 +283,7 @@ export default function AdminDashboardPage() {
     setAvailability("Private Collection (Drop TBA)")
     setCoverPosX(50)
     setCoverPosY(50)
+    setCoverFit("cover")
     const maxNum = plants.length > 0 ? plants.length + 1 : 1
     setNumber(maxNum < 10 ? `0${maxNum}` : `${maxNum}`)
     if (fileInputRef.current) fileInputRef.current.value = ""
@@ -490,6 +494,7 @@ export default function AdminDashboardPage() {
             price: price.trim(),
             availability,
             coverPosition: `${coverPosX}% ${coverPosY}%`,
+            coverFit,
           }),
         })
 
@@ -512,6 +517,7 @@ export default function AdminDashboardPage() {
             price: price.trim(),
             availability,
             coverPosition: `${coverPosX}% ${coverPosY}%`,
+            coverFit,
           }),
         })
 
@@ -526,6 +532,7 @@ export default function AdminDashboardPage() {
         setPrice("")
         setCoverPosX(50)
         setCoverPosY(50)
+        setCoverFit("cover")
         if (fileInputRef.current) fileInputRef.current.value = ""
       }
 
@@ -1021,20 +1028,68 @@ export default function AdminDashboardPage() {
                   <div className="border border-dashed border-border p-4 bg-secondary/20 text-center flex flex-col items-center justify-center gap-3">
                     {imageUrl ? (
                       <div className="w-full flex flex-col gap-3">
-                        {/* Real Archive Card Simulation Box (Exact 4:5 Aspect Ratio) */}
+                        {/* Interactive Frame Simulator */}
                         <div className="flex flex-col items-center">
-                          <div className="text-[10px] font-mono text-muted-foreground mb-1.5 flex justify-between w-full max-w-[340px]">
-                            <span>[ 📱 실제 아카이브 카드 1:1 동일 비율 미리보기 ]</span>
-                            <span className="text-emerald-400">4 : 5 프레임</span>
+                          {/* Ratio Toggle Tabs */}
+                          <div className="flex items-center justify-between w-full max-w-[420px] mb-2 text-[10px] font-mono">
+                            <span className="text-muted-foreground uppercase">프레임 비율:</span>
+                            <div className="flex gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setPreviewAspect("4/3")}
+                                className={`px-2 py-0.5 border cursor-pointer transition-colors ${
+                                  previewAspect === "4/3"
+                                    ? "bg-foreground text-background font-bold border-foreground"
+                                    : "border-border text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                4 : 3 (아카이브 카드)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPreviewAspect("square")}
+                                className={`px-2 py-0.5 border cursor-pointer transition-colors ${
+                                  previewAspect === "square"
+                                    ? "bg-foreground text-background font-bold border-foreground"
+                                    : "border-border text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                1 : 1 (정사각)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPreviewAspect("16/9")}
+                                className={`px-2 py-0.5 border cursor-pointer transition-colors ${
+                                  previewAspect === "16/9"
+                                    ? "bg-foreground text-background font-bold border-foreground"
+                                    : "border-border text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                16 : 9 (와이드)
+                              </button>
+                            </div>
                           </div>
                           
-                          <div className="relative w-full max-w-[340px] aspect-[4/5] overflow-hidden border border-border group bg-secondary/30 shadow-lg">
+                          {/* Live Preview Box */}
+                          <div
+                            className={`relative w-full max-w-[420px] overflow-hidden border border-border group bg-black/60 shadow-xl transition-all ${
+                              previewAspect === "4/3"
+                                ? "aspect-[4/3]"
+                                : previewAspect === "square"
+                                ? "aspect-square"
+                                : "aspect-video"
+                            }`}
+                          >
                             <Image
                               src={imageUrl}
                               alt="Preview"
                               fill
-                              style={{ objectPosition: `${coverPosX}% ${coverPosY}%` }}
-                              className="object-cover transition-all duration-150"
+                              style={{
+                                objectPosition: coverFit === "contain" ? "center" : `${coverPosX}% ${coverPosY}%`,
+                              }}
+                              className={`transition-all duration-150 ${
+                                coverFit === "contain" ? "object-contain" : "object-cover"
+                              }`}
                             />
                             <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                               <span className="text-[10px] font-mono uppercase tracking-widest text-foreground">
@@ -1043,122 +1098,153 @@ export default function AdminDashboardPage() {
                             </div>
                             {/* Live coordinate badge */}
                             <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-md border border-border px-2 py-0.5 text-[10px] font-mono text-emerald-400">
-                              X: {coverPosX}% | Y: {coverPosY}%
-                            </div>
-                            {/* Visual center guide lines */}
-                            <div className="absolute inset-0 border border-white/5 pointer-events-none flex items-center justify-center">
-                              <div className="w-4 h-4 border border-dashed border-white/20 rounded-full"></div>
+                              {coverFit === "contain" ? "전체보기 (Contain)" : `X: ${coverPosX}% | Y: ${coverPosY}%`}
                             </div>
                           </div>
                         </div>
 
-                        {/* Granular Focus Position Controls (Sliders + Presets) */}
-                        <div className="w-full flex flex-col gap-3 pt-3 border-t border-border/40 text-left bg-secondary/10 p-3">
-                          <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-foreground font-semibold flex items-center gap-1.5">
-                              <span>🎚️</span>
-                              <span>대문 사진 노출 위치 미세조절 (Granular Focus)</span>
-                            </span>
-                            <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5">
-                              상하: {coverPosY}% | 좌우: {coverPosX}%
-                            </span>
-                          </div>
-
-                          {/* Y-Axis Slider (Vertical - Most Important) */}
-                          <div className="flex flex-col gap-1.5">
-                            <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
-                              <span>↕️ 상하 위치 (Y-Axis)</span>
-                              <span className="text-foreground font-bold">{coverPosY}%</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] font-mono text-muted-foreground shrink-0">0% (맨 위)</span>
-                              <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                step="1"
-                                value={coverPosY}
-                                onChange={(e) => setCoverPosY(Number(e.target.value))}
-                                className="w-full h-1.5 bg-secondary border border-border rounded-lg appearance-none cursor-pointer accent-emerald-400"
-                              />
-                              <span className="text-[9px] font-mono text-muted-foreground shrink-0">100% (맨 아래)</span>
-                            </div>
-                          </div>
-
-                          {/* X-Axis Slider (Horizontal) */}
-                          <div className="flex flex-col gap-1.5">
-                            <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
-                              <span>↔️ 좌우 위치 (X-Axis)</span>
-                              <span className="text-foreground font-bold">{coverPosX}%</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] font-mono text-muted-foreground shrink-0">0% (좌측)</span>
-                              <input
-                                type="range"
-                                min="0"
-                                max="100"
-                                step="1"
-                                value={coverPosX}
-                                onChange={(e) => setCoverPosX(Number(e.target.value))}
-                                className="w-full h-1.5 bg-secondary border border-border rounded-lg appearance-none cursor-pointer accent-emerald-400"
-                              />
-                              <span className="text-[9px] font-mono text-muted-foreground shrink-0">100% (우측)</span>
-                            </div>
-                          </div>
-
-                          {/* Quick Presets */}
-                          <div className="flex flex-wrap gap-1.5 pt-1">
+                        {/* Fit Mode Selector (Cover vs Contain) */}
+                        <div className="flex items-center justify-between bg-secondary/20 p-2.5 border border-border text-xs font-mono">
+                          <span className="text-muted-foreground text-[11px]">사진 채우기 방식:</span>
+                          <div className="flex gap-1.5">
                             <button
                               type="button"
-                              onClick={() => { setCoverPosX(50); setCoverPosY(0); }}
-                              className={`py-1 px-2 text-[9px] font-mono uppercase tracking-wider border cursor-pointer transition-colors ${
-                                coverPosY === 0 ? "bg-foreground text-background font-semibold" : "border-border text-muted-foreground hover:text-foreground"
+                              onClick={() => setCoverFit("cover")}
+                              className={`px-3 py-1 text-[10px] uppercase tracking-wider border cursor-pointer transition-colors ${
+                                coverFit === "cover"
+                                  ? "bg-foreground text-background font-bold border-foreground"
+                                  : "border-border text-muted-foreground hover:text-foreground"
                               }`}
                             >
-                              🔝 맨 위 (0%)
+                              🔲 꽉 채우기 (Cover) + 위치조절
                             </button>
                             <button
                               type="button"
-                              onClick={() => { setCoverPosX(50); setCoverPosY(25); }}
-                              className={`py-1 px-2 text-[9px] font-mono uppercase tracking-wider border cursor-pointer transition-colors ${
-                                coverPosY === 25 ? "bg-foreground text-background font-semibold" : "border-border text-muted-foreground hover:text-foreground"
+                              onClick={() => setCoverFit("contain")}
+                              className={`px-3 py-1 text-[10px] uppercase tracking-wider border cursor-pointer transition-colors ${
+                                coverFit === "contain"
+                                  ? "bg-foreground text-background font-bold border-foreground"
+                                  : "border-border text-muted-foreground hover:text-foreground"
                               }`}
                             >
-                              ⬆️ 상단 (25%)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { setCoverPosX(50); setCoverPosY(50); }}
-                              className={`py-1 px-2 text-[9px] font-mono uppercase tracking-wider border cursor-pointer transition-colors ${
-                                coverPosY === 50 && coverPosX === 50 ? "bg-foreground text-background font-semibold" : "border-border text-muted-foreground hover:text-foreground"
-                              }`}
-                            >
-                              🎯 정중앙 (50%)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { setCoverPosX(50); setCoverPosY(75); }}
-                              className={`py-1 px-2 text-[9px] font-mono uppercase tracking-wider border cursor-pointer transition-colors ${
-                                coverPosY === 75 ? "bg-foreground text-background font-semibold" : "border-border text-muted-foreground hover:text-foreground"
-                              }`}
-                            >
-                              ⬇️ 하단 (75%)
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => { setCoverPosX(50); setCoverPosY(100); }}
-                              className={`py-1 px-2 text-[9px] font-mono uppercase tracking-wider border cursor-pointer transition-colors ${
-                                coverPosY === 100 ? "bg-foreground text-background font-semibold" : "border-border text-muted-foreground hover:text-foreground"
-                              }`}
-                            >
-                              🔻 맨 아래 (100%)
+                              🖼️ 원본 전체보기 (잘림 없음)
                             </button>
                           </div>
-
-                          <p className="text-[9px] font-mono text-muted-foreground/80">
-                            * 슬라이더를 움직이면 메인 카탈로그 카드에 노출될 식물의 위치가 1% 단위로 실시간 조정됩니다.
-                          </p>
                         </div>
+
+                        {/* Granular Focus Position Controls (Only visible when coverFit === 'cover') */}
+                        {coverFit === "cover" ? (
+                          <div className="w-full flex flex-col gap-3 pt-3 border-t border-border/40 text-left bg-secondary/10 p-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-mono uppercase tracking-widest text-foreground font-semibold flex items-center gap-1.5">
+                                <span>🎚️</span>
+                                <span>대문 사진 노출 위치 미세조절 (Granular Focus)</span>
+                              </span>
+                              <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5">
+                                상하: {coverPosY}% | 좌우: {coverPosX}%
+                              </span>
+                            </div>
+
+                            {/* Y-Axis Slider (Vertical - Most Important) */}
+                            <div className="flex flex-col gap-1.5">
+                              <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
+                                <span>↕️ 상하 위치 (Y-Axis)</span>
+                                <span className="text-foreground font-bold">{coverPosY}%</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[9px] font-mono text-muted-foreground shrink-0">0% (맨 위)</span>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="100"
+                                  step="1"
+                                  value={coverPosY}
+                                  onChange={(e) => setCoverPosY(Number(e.target.value))}
+                                  className="w-full h-1.5 bg-secondary border border-border rounded-lg appearance-none cursor-pointer accent-emerald-400"
+                                />
+                                <span className="text-[9px] font-mono text-muted-foreground shrink-0">100% (맨 아래)</span>
+                              </div>
+                            </div>
+
+                            {/* X-Axis Slider (Horizontal) */}
+                            <div className="flex flex-col gap-1.5">
+                              <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
+                                <span>↔️ 좌우 위치 (X-Axis)</span>
+                                <span className="text-foreground font-bold">{coverPosX}%</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[9px] font-mono text-muted-foreground shrink-0">0% (좌측)</span>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="100"
+                                  step="1"
+                                  value={coverPosX}
+                                  onChange={(e) => setCoverPosX(Number(e.target.value))}
+                                  className="w-full h-1.5 bg-secondary border border-border rounded-lg appearance-none cursor-pointer accent-emerald-400"
+                                />
+                                <span className="text-[9px] font-mono text-muted-foreground shrink-0">100% (우측)</span>
+                              </div>
+                            </div>
+
+                            {/* Quick Presets */}
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => { setCoverPosX(50); setCoverPosY(0); }}
+                                className={`py-1 px-2 text-[9px] font-mono uppercase tracking-wider border cursor-pointer transition-colors ${
+                                  coverPosY === 0 ? "bg-foreground text-background font-semibold" : "border-border text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                🔝 맨 위 (0%)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setCoverPosX(50); setCoverPosY(25); }}
+                                className={`py-1 px-2 text-[9px] font-mono uppercase tracking-wider border cursor-pointer transition-colors ${
+                                  coverPosY === 25 ? "bg-foreground text-background font-semibold" : "border-border text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                ⬆️ 상단 (25%)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setCoverPosX(50); setCoverPosY(50); }}
+                                className={`py-1 px-2 text-[9px] font-mono uppercase tracking-wider border cursor-pointer transition-colors ${
+                                  coverPosY === 50 && coverPosX === 50 ? "bg-foreground text-background font-semibold" : "border-border text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                🎯 정중앙 (50%)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setCoverPosX(50); setCoverPosY(75); }}
+                                className={`py-1 px-2 text-[9px] font-mono uppercase tracking-wider border cursor-pointer transition-colors ${
+                                  coverPosY === 75 ? "bg-foreground text-background font-semibold" : "border-border text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                ⬇️ 하단 (75%)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setCoverPosX(50); setCoverPosY(100); }}
+                                className={`py-1 px-2 text-[9px] font-mono uppercase tracking-wider border cursor-pointer transition-colors ${
+                                  coverPosY === 100 ? "bg-foreground text-background font-semibold" : "border-border text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                🔻 맨 아래 (100%)
+                              </button>
+                            </div>
+
+                            <p className="text-[9px] font-mono text-muted-foreground/80">
+                              * 슬라이더를 움직이면 메인 카탈로그 카드에 노출될 식물의 위치가 1% 단위로 실시간 조정됩니다.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="p-3 bg-secondary/10 border border-border text-[11px] font-mono text-muted-foreground text-center">
+                            ✓ 원본 전체보기 모드: 사진이 1픽셀도 잘리지 않고 온전한 원본 구도로 카드에 표시됩니다.
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="py-4 text-muted-foreground">

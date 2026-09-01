@@ -152,14 +152,16 @@ export function ArchiveFilterGrid({ initialPlants }: ArchiveFilterGridProps) {
                   </span>
                 </div>
 
-                {/* Image Thumbnail (Always latest photo - Exact 4:5 Ratio) */}
-                <div className="relative w-full aspect-[4/5] overflow-hidden mb-6 bg-secondary/20">
+                {/* Image Thumbnail (4:3 Ratio with cover/contain support) */}
+                <div className="relative w-full aspect-[4/3] overflow-hidden mb-6 bg-black/40 border border-border/30">
                   <Image
                     src={displayImage}
                     alt={plant.title}
                     fill
-                    style={{ objectPosition: plant.coverPosition || "center" }}
-                    className="object-cover transition-transform duration-700 ease-out group-hover:scale-105 md:grayscale md:group-hover:grayscale-0"
+                    style={{ objectPosition: plant.coverFit === "contain" ? "center" : (plant.coverPosition || "center") }}
+                    className={`transition-transform duration-700 ease-out group-hover:scale-105 md:grayscale md:group-hover:grayscale-0 ${
+                      plant.coverFit === "contain" ? "object-contain" : "object-cover"
+                    }`}
                   />
                   {plant.photos && plant.photos.length > 1 && (
                     <div className="absolute bottom-3 right-3 px-2.5 py-1 bg-background/80 backdrop-blur-md border border-border text-[10px] font-mono text-foreground">

@@ -86,8 +86,10 @@ export function ChaoticGallery({ items = INITIAL_PLANTS }: ChaoticGalleryProps) 
                     src={item.src || "/placeholder.svg"}
                     alt={item.title}
                     fill
-                    style={{ objectPosition: item.coverPosition || "center" }}
-                    className="object-cover transition-transform duration-[1.5s] ease-in-out group-hover:scale-105 md:grayscale md:hover:grayscale-0"
+                    style={{ objectPosition: item.coverFit === "contain" ? "center" : (item.coverPosition || "center") }}
+                    className={`transition-transform duration-[1.5s] ease-in-out group-hover:scale-105 md:grayscale md:hover:grayscale-0 ${
+                      item.coverFit === "contain" ? "object-contain" : "object-cover"
+                    }`}
                   />
 
                   {/* Overlay Lines */}

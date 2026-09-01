@@ -17,7 +17,8 @@ export interface PlantItem {
   span?: string
   height?: string
   availability?: string
-  coverPosition?: string // e.g. "center", "top", "bottom" - controls object-position
+  coverPosition?: string // e.g. "50% 50%" - controls object-position
+  coverFit?: "cover" | "contain" // "cover" (fill frame) or "contain" (no crop, full photo)
   photos?: PlantPhotoRecord[]
   createdAt?: string
   updatedAt?: string

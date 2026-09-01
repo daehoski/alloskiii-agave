@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { title, japaneseName, slug, number, src, availability, category, price, coverPosition } = body
+    const { title, japaneseName, slug, number, src, availability, category, price, coverPosition, coverFit } = body
 
     if (!title || !slug || !src) {
       return NextResponse.json(
@@ -33,7 +33,8 @@ export async function POST(request: Request) {
       category: category || "titanota",
       price: price ? price.trim() : undefined,
       availability: availability || "Private Collection (Drop TBA)",
-      coverPosition: coverPosition || "center",
+      coverPosition: coverPosition || "50% 50%",
+      coverFit: coverFit || "cover",
     })
 
     return NextResponse.json({ success: true, plant: newPlant })
