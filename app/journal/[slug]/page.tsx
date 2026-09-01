@@ -80,6 +80,27 @@ export default async function JournalDetailPage({ params }: Props) {
       if (trimmed === "") {
         return <div key={idx} className="h-4" />
       }
+      // Image Markdown Parsing: ![alt](url) (한 줄에 이미지 하나)
+      if (trimmed.startsWith("![") && trimmed.includes("](") && trimmed.endsWith(")")) {
+        const altMatch = trimmed.match(/!\[(.*?)\]/)
+        const urlMatch = trimmed.match(/\((.*?)\)/)
+        if (urlMatch) {
+          return (
+            <div key={idx} className="w-full my-8">
+              <img 
+                src={urlMatch[1]} 
+                alt={altMatch?.[1] || "Journal Image"} 
+                className="w-full h-auto border border-border bg-secondary/10" 
+              />
+              {altMatch?.[1] && (
+                <p className="text-center text-[10px] font-mono text-muted-foreground mt-2">
+                  {altMatch[1]}
+                </p>
+              )}
+            </div>
+          )
+        }
+      }
       return (
         <p key={idx} className="text-sm md:text-base leading-relaxed text-muted-foreground/90 font-light my-2">
           {trimmed}

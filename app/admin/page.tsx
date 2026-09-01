@@ -1608,14 +1608,47 @@ export default function AdminDashboardPage() {
                 </div>
 
                 <div>
-                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono block mb-1">
-                    Article Body Content (본문 에세이 / 마크다운 지원) *
-                  </label>
+                  <div className="flex justify-between items-end mb-1">
+                    <label className="text-[10px] uppercase tracking-widest text-muted-foreground font-mono">
+                      Article Body Content (본문 에세이 / 마크다운 지원) *
+                    </label>
+                    <label className="text-[10px] uppercase font-mono tracking-widest px-2 py-1 border border-border bg-secondary/10 hover:bg-secondary/30 cursor-pointer transition-colors text-foreground flex items-center gap-1">
+                      <span>📸 본문 사진 삽입</span>
+                      <input 
+                        type="file" 
+                        accept="image/*,.heic,.HEIC" 
+                        className="hidden" 
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          
+                          setFeedback({ type: "info", message: "Uploading body image..." })
+                          const formData = new FormData()
+                          formData.append("file", file)
+                          
+                          try {
+                            const res = await fetch("/api/upload", { method: "POST", body: formData })
+                            const data = await res.json()
+                            if (res.ok && data.url) {
+                              setJournalContent(prev => prev + `\n\n![본문 이미지](${data.url})\n\n`)
+                              setFeedback({ type: "success", message: "Image inserted to body!" })
+                            } else {
+                              throw new Error(data.error || "Upload failed")
+                            }
+                          } catch (err: any) {
+                            setFeedback({ type: "error", message: err.message })
+                          }
+                          
+                          e.target.value = "" // Reset input
+                        }} 
+                      />
+                    </label>
+                  </div>
                   <textarea
                     rows={12}
                     value={journalContent}
                     onChange={(e) => setJournalContent(e.target.value)}
-                    placeholder="Write your cultivation notes, tips, substrate recipes, or notices here..."
+                    placeholder="Write your cultivation notes, tips, substrate recipes, or notices here...\n\n- ### Heading 3\n- ## Heading 2\n- * bullet list\n- 1. number list"
                     required
                     className="w-full bg-secondary/20 border border-border p-3.5 text-foreground leading-relaxed font-sans placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors font-light"
                   />
