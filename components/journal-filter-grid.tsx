@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { JOURNAL_CATEGORIES, type JournalPost } from "@/lib/journal-data"
@@ -10,12 +10,29 @@ interface JournalFilterGridProps {
 }
 
 export function JournalFilterGrid({ initialPosts }: JournalFilterGridProps) {
+  const [posts, setPosts] = useState<JournalPost[]>(initialPosts)
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
+
+  // Auto-sync with latest journal on mount
+  useEffect(() => {
+    async function syncLatest() {
+      try {
+        const res = await fetch("/api/journal", { cache: "no-store" })
+        const data = await res.json()
+        if (data.posts && data.posts.length > 0) {
+          setPosts(data.posts)
+        }
+      } catch (err) {
+        console.error("Failed to sync journal:", err)
+      }
+    }
+    syncLatest()
+  }, [])
 
   const filteredPosts =
     selectedCategory === "all"
-      ? initialPosts
-      : initialPosts.filter(
+      ? posts
+      : posts.filter(
           (p) => p.category?.toLowerCase() === selectedCategory.toLowerCase()
         )
 

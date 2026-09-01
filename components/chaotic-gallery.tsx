@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import Image from "next/image"
 import Link from "next/link"
@@ -21,7 +22,24 @@ const LAYOUT_PRESETS = [
 ]
 
 export function ChaoticGallery({ items = INITIAL_PLANTS }: ChaoticGalleryProps) {
-  const allPlants = items && items.length > 0 ? items : INITIAL_PLANTS
+  const [allPlants, setAllPlants] = useState<PlantItem[]>(items && items.length > 0 ? items : INITIAL_PLANTS)
+
+  // Auto-sync with latest plants on mount
+  useEffect(() => {
+    async function syncLatest() {
+      try {
+        const res = await fetch("/api/plants", { cache: "no-store" })
+        const data = await res.json()
+        if (data.plants && data.plants.length > 0) {
+          setAllPlants(data.plants)
+        }
+      } catch (err) {
+        console.error("Failed to sync plants:", err)
+      }
+    }
+    syncLatest()
+  }, [])
+
   // Limit to maximum 7 plants on landing page
   const displayItems = allPlants.slice(0, 7)
   const totalCount = allPlants.length

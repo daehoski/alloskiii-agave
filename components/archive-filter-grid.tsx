@@ -10,16 +10,33 @@ interface ArchiveFilterGridProps {
 }
 
 export function ArchiveFilterGrid({ initialPlants }: ArchiveFilterGridProps) {
+  const [plants, setPlants] = useState<PlantItem[]>(initialPlants)
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [sortBy, setSortBy] = useState<"latest" | "number">("latest")
+
+  // Auto-sync with latest API on mount
+  useEffect(() => {
+    async function syncLatest() {
+      try {
+        const res = await fetch("/api/plants", { cache: "no-store" })
+        const data = await res.json()
+        if (data.plants && data.plants.length > 0) {
+          setPlants(data.plants)
+        }
+      } catch (err) {
+        console.error("Failed to sync plants:", err)
+      }
+    }
+    syncLatest()
+  }, [])
 
   // Filter and sort plants
   const processedPlants = useMemo(() => {
     // 1. Filter by category
     const filtered =
       selectedCategory === "all"
-        ? [...initialPlants]
-        : initialPlants.filter(
+        ? [...plants]
+        : plants.filter(
             (p) =>
               p.category?.toLowerCase() === selectedCategory.toLowerCase() ||
               p.title.toLowerCase().includes(selectedCategory.toLowerCase())
@@ -27,14 +44,12 @@ export function ArchiveFilterGrid({ initialPlants }: ArchiveFilterGridProps) {
 
     // 2. Sort
     if (sortBy === "latest") {
-      // Sort by latest photo date or updatedAt/createdAt
       filtered.sort((a, b) => {
         const dateA = a.photos?.[0]?.date || a.updatedAt || a.createdAt || ""
         const dateB = b.photos?.[0]?.date || b.updatedAt || b.createdAt || ""
         return dateB.localeCompare(dateA)
       })
     } else {
-      // Sort by assigned number (01, 02...)
       filtered.sort((a, b) => {
         const numA = parseInt(a.number, 10) || a.id
         const numB = parseInt(b.number, 10) || b.id
@@ -43,7 +58,7 @@ export function ArchiveFilterGrid({ initialPlants }: ArchiveFilterGridProps) {
     }
 
     return filtered
-  }, [initialPlants, selectedCategory, sortBy])
+  }, [plants, selectedCategory, sortBy])
 
   return (
     <div>
