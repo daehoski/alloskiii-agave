@@ -14,7 +14,7 @@ interface Props {
 }
 
 export async function generateStaticParams() {
-  const posts = getAllPosts()
+  const posts = await getAllPosts()
   return posts.map((p) => ({
     slug: p.slug,
   }))
@@ -22,7 +22,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const post = getPostBySlug(slug)
+  const post = await getPostBySlug(slug)
   if (!post) return { title: "Post Not Found" }
 
   return {
@@ -33,13 +33,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function JournalDetailPage({ params }: Props) {
   const { slug } = await params
-  const post = getPostBySlug(slug)
+  const post = await getPostBySlug(slug)
 
   if (!post) {
     notFound()
   }
 
-  const posts = getAllPosts()
+  const posts = await getAllPosts()
   const currentIndex = posts.findIndex((p) => p.slug === post.slug)
   const prevPost = currentIndex > 0 ? posts[currentIndex - 1] : null
   const nextPost = currentIndex < posts.length - 1 ? posts[currentIndex + 1] : null

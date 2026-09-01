@@ -3,7 +3,7 @@ import { getAllPosts, addPost } from "@/lib/journal-db"
 import { getCurrentUser } from "@/lib/auth"
 
 export async function GET() {
-  const posts = getAllPosts()
+  const posts = await getAllPosts()
   return NextResponse.json({ posts })
 }
 
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const newPost = addPost({
+    const newPost = await addPost({
       title,
       subtitle: subtitle || "",
       slug: slug.trim().toLowerCase(),

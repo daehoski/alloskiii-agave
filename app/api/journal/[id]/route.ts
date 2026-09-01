@@ -23,7 +23,7 @@ export async function PUT(request: Request, { params }: Props) {
     const body = await request.json()
     const { title, subtitle, slug, date, category, coverImage, content, readTime } = body
 
-    const updated = updatePost(numericId, {
+    const updated = await updatePost(numericId, {
       title,
       subtitle,
       slug: slug ? slug.trim().toLowerCase() : undefined,
@@ -59,7 +59,7 @@ export async function DELETE(request: Request, { params }: Props) {
       return NextResponse.json({ error: "Invalid post ID" }, { status: 400 })
     }
 
-    const success = deletePost(numericId)
+    const success = await deletePost(numericId)
     if (!success) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 })
     }

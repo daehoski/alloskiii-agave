@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid parameters" }, { status: 400 })
     }
 
-    const success = movePlant(parseInt(id, 10), direction)
+    const success = await movePlant(parseInt(id, 10), direction)
     if (!success) {
       return NextResponse.json({ error: "Plant not found" }, { status: 404 })
     }

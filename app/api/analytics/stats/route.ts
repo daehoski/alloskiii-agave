@@ -12,7 +12,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 403 })
     }
 
-    const stats = getAnalyticsSummary()
+    const stats = await getAnalyticsSummary()
     return NextResponse.json({ stats })
   } catch (error) {
     console.error("Get analytics stats error:", error)

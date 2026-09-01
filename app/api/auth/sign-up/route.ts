@@ -12,7 +12,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const result = createUser(email, password)
+    const result = await createUser(email, password)
     if (!result.success || !result.user) {
       return NextResponse.json({ error: result.error || "Failed to create account" }, { status: 400 })
     }

@@ -3,7 +3,7 @@ import { getAllPlants, addPlant } from "@/lib/plants-db"
 import { getCurrentUser } from "@/lib/auth"
 
 export async function GET() {
-  const plants = getAllPlants()
+  const plants = await getAllPlants()
   return NextResponse.json({ plants })
 }
 
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const newPlant = addPlant({
+    const newPlant = await addPlant({
       title,
       japaneseName: japaneseName || "",
       slug: slug.trim().toLowerCase(),

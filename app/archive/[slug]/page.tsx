@@ -16,7 +16,7 @@ interface Props {
 }
 
 export async function generateStaticParams() {
-  const plants = getAllPlants()
+  const plants = await getAllPlants()
   return plants.map((plant) => ({
     slug: plant.slug,
   }))
@@ -24,7 +24,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const specimen = getPlantBySlug(slug)
+  const specimen = await getPlantBySlug(slug)
   if (!specimen) return { title: "Plant Not Found" }
 
   return {
@@ -35,13 +35,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SpecimenDetailPage({ params }: Props) {
   const { slug } = await params
-  const specimen = getPlantBySlug(slug)
+  const specimen = await getPlantBySlug(slug)
 
   if (!specimen) {
     notFound()
   }
 
-  const plants = getAllPlants()
+  const plants = await getAllPlants()
   const currentIndex = plants.findIndex((s) => s.slug === specimen.slug)
   const prevSpecimen = currentIndex > 0 ? plants[currentIndex - 1] : null
   const nextSpecimen =

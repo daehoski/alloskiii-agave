@@ -23,7 +23,7 @@ export async function PUT(request: Request, { params }: Props) {
     const body = await request.json()
     const { title, japaneseName, slug, number, src, availability, category, price } = body
 
-    const updated = updatePlant(numericId, {
+    const updated = await updatePlant(numericId, {
       title,
       japaneseName,
       slug: slug ? slug.trim().toLowerCase() : undefined,
@@ -59,7 +59,7 @@ export async function DELETE(request: Request, { params }: Props) {
       return NextResponse.json({ error: "Invalid ID" }, { status: 400 })
     }
 
-    const success = deletePlant(numericId)
+    const success = await deletePlant(numericId)
     if (!success) {
       return NextResponse.json({ error: "Plant not found" }, { status: 404 })
     }

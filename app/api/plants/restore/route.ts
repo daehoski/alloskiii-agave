@@ -9,7 +9,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 403 })
     }
 
-    const deletedPlants = getDeletedPlants()
+    const deletedPlants = await getDeletedPlants()
     return NextResponse.json({ deletedPlants })
   } catch (error) {
     console.error("Get deleted plants error:", error)
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}))
     const { id } = body
 
-    const restored = restorePlant(id ? parseInt(id, 10) : undefined)
+    const restored = await restorePlant(id ? parseInt(id, 10) : undefined)
     if (!restored) {
       return NextResponse.json({ error: "No plant to restore" }, { status: 404 })
     }

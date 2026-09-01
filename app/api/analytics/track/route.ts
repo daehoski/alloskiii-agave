@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const forwardedFor = headersList.get("x-forwarded-for")
     const ip = forwardedFor ? forwardedFor.split(",")[0].trim() : "127.0.0.1"
 
-    logPageView({
+    await logPageView({
       path,
       plantSlug,
       referrer,

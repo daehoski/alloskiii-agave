@@ -10,12 +10,12 @@ export async function POST(request: Request) {
     }
 
     const normalizedEmail = email.trim().toLowerCase()
-    const users = getAllUsers()
+    const users = await getAllUsers()
     if (users.some((u) => u.email === normalizedEmail)) {
       return NextResponse.json({ error: "This email is already registered." }, { status: 400 })
     }
 
-    const code = createVerificationCode(normalizedEmail)
+    const code = await createVerificationCode(normalizedEmail)
 
     return NextResponse.json({
       success: true,

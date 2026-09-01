@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic"
 export const revalidate = 0
 
-export default function JournalPage() {
-  const posts = getAllPosts()
+export default async function JournalPage() {
+  const posts = await getAllPosts()
 
   return (
     <main className="min-h-screen bg-background text-foreground selection:bg-primary selection:text-primary-foreground pt-24">

@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: Props) {
       return NextResponse.json({ error: "Image URL is required" }, { status: 400 })
     }
 
-    const updated = addGrowthPhoto(
+    const updated = await addGrowthPhoto(
       plantId,
       date || new Date().toISOString().slice(0, 10).replace(/-/g, "."),
       src,
@@ -63,7 +63,7 @@ export async function DELETE(request: Request, { params }: Props) {
       return NextResponse.json({ error: "Plant ID and photoId are required" }, { status: 400 })
     }
 
-    const updated = deleteGrowthPhoto(plantId, photoId)
+    const updated = await deleteGrowthPhoto(plantId, photoId)
     if (!updated) {
       return NextResponse.json({ error: "Plant or photo not found" }, { status: 404 })
     }

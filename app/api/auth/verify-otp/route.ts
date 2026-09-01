@@ -9,7 +9,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Email and verification code are required." }, { status: 400 })
     }
 
-    const isValid = verifyCode(email, code)
+    const isValid = await verifyCode(email, code)
     if (!isValid) {
       return NextResponse.json({ error: "Invalid or expired verification code." }, { status: 400 })
     }
