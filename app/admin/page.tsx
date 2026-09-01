@@ -508,6 +508,9 @@ export default function AdminDashboardPage() {
         if (!res.ok) throw new Error(data.error || "Failed to update plant")
 
         setFeedback({ type: "success", message: `Successfully updated '${title}'` })
+        if (data.plant) {
+          setPlants(prev => prev.map(p => p.id === editingPlantId ? data.plant : p))
+        }
         cancelEdit()
       } else {
         const res = await fetch("/api/plants", {
@@ -531,6 +534,9 @@ export default function AdminDashboardPage() {
         if (!res.ok) throw new Error(data.error || "Failed to register plant")
 
         setFeedback({ type: "success", message: `Successfully registered '${title}'` })
+        if (data.plant) {
+          setPlants(prev => [...prev, data.plant])
+        }
         setTitle("")
         setJapaneseName("")
         setSlug("")
@@ -541,8 +547,6 @@ export default function AdminDashboardPage() {
         setCoverFit("cover")
         if (fileInputRef.current) fileInputRef.current.value = ""
       }
-
-      fetchPlants()
     } catch (err: any) {
       setFeedback({ type: "error", message: err.message })
     } finally {
@@ -568,6 +572,10 @@ export default function AdminDashboardPage() {
       })
       if (editingPlantId === id) cancelEdit()
       if (growthModalPlant?.id === id) setGrowthModalPlant(null)
+      
+      // Optmistic update for delete
+      setPlants(prev => prev.filter(p => p.id !== id))
+      // Also fetch to sync trash bin, but don't block
       fetchPlants()
     } catch (err: any) {
       setFeedback({ type: "error", message: err.message })
