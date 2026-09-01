@@ -17,9 +17,12 @@ export function JournalFilterGrid({ initialPosts }: JournalFilterGridProps) {
   useEffect(() => {
     async function syncLatest() {
       try {
-        const res = await fetch("/api/journal", { cache: "no-store" })
+        const res = await fetch(`/api/journal?t=${Date.now()}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache" },
+        })
         const data = await res.json()
-        if (data.posts && data.posts.length > 0) {
+        if (data.posts) {
           setPosts(data.posts)
         }
       } catch (err) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { CATEGORIES, type PlantItem } from "@/lib/plants-data"
@@ -18,9 +18,12 @@ export function ArchiveFilterGrid({ initialPlants }: ArchiveFilterGridProps) {
   useEffect(() => {
     async function syncLatest() {
       try {
-        const res = await fetch("/api/plants", { cache: "no-store" })
+        const res = await fetch(`/api/plants?t=${Date.now()}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache" },
+        })
         const data = await res.json()
-        if (data.plants && data.plants.length > 0) {
+        if (data.plants) {
           setPlants(data.plants)
         }
       } catch (err) {

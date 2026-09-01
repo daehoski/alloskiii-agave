@@ -112,7 +112,10 @@ export default function AdminDashboardPage() {
   const fetchPlants = async () => {
     try {
       setLoadingPlants(true)
-      const res = await fetch("/api/plants")
+      const res = await fetch(`/api/plants?t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      })
       const data = await res.json()
       if (data.plants) {
         setPlants(data.plants)
@@ -126,7 +129,10 @@ export default function AdminDashboardPage() {
         }
       }
 
-      const trashRes = await fetch("/api/plants/restore")
+      const trashRes = await fetch(`/api/plants/restore?t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache" },
+      })
       const trashData = await trashRes.json()
       if (trashData.deletedPlants) {
         setDeletedPlants(trashData.deletedPlants)

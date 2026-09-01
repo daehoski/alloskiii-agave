@@ -28,9 +28,12 @@ export function ChaoticGallery({ items = INITIAL_PLANTS }: ChaoticGalleryProps) 
   useEffect(() => {
     async function syncLatest() {
       try {
-        const res = await fetch("/api/plants", { cache: "no-store" })
+        const res = await fetch(`/api/plants?t=${Date.now()}`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache" },
+        })
         const data = await res.json()
-        if (data.plants && data.plants.length > 0) {
+        if (data.plants) {
           setAllPlants(data.plants)
         }
       } catch (err) {

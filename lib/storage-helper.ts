@@ -1,6 +1,6 @@
 import fs from "fs"
 import path from "path"
-import { put, list } from "@vercel/blob"
+import { put, list, del } from "@vercel/blob"
 
 // Check if Vercel Blob is available (production on Vercel)
 function isBlobAvailable(): boolean {
@@ -13,14 +13,23 @@ function isBlobAvailable(): boolean {
 async function readBlobJson<T>(key: string, defaultData: T): Promise<T> {
   try {
     const { blobs } = await list({ prefix: key })
-    if (blobs.length === 0) return defaultData
+    if (!blobs || blobs.length === 0) return defaultData
 
-    // Use the most recent blob
-    const latest = blobs.sort((a, b) => 
+    // Sort to get the latest blob
+    const sorted = blobs.sort((a, b) => 
       new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
-    )[0]
+    )
+    const latest = sorted[0]
 
-    const res = await fetch(latest.url, { cache: "no-store" })
+    // Fetch with cachebuster to prevent CDN stale caching
+    const res = await fetch(`${latest.url}?t=${Date.now()}`, {
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+      },
+    })
+
     if (!res.ok) return defaultData
     return await res.json()
   } catch (err) {
@@ -31,25 +40,26 @@ async function readBlobJson<T>(key: string, defaultData: T): Promise<T> {
 
 async function writeBlobJson<T>(key: string, data: T): Promise<void> {
   try {
-    // Clean up old blobs with same prefix to avoid clutter
-    const { blobs } = await list({ prefix: key })
-    
-    // Write new blob
-    await put(key, JSON.stringify(data), {
+    // 1. Write the new version with random suffix to avoid 409 Conflict
+    const newBlob = await put(`${key}`, JSON.stringify(data), {
       access: "public",
-      addRandomSuffix: false,
+      addRandomSuffix: true,
       contentType: "application/json",
     })
 
-    // Delete old versions (keep only latest)
-    if (blobs.length > 0) {
-      const { del } = await import("@vercel/blob")
-      for (const old of blobs) {
-        try { await del(old.url) } catch {}
+    // 2. Clean up previous versions (keep only the newest one)
+    try {
+      const { blobs } = await list({ prefix: key })
+      const oldBlobs = blobs.filter((b) => b.url !== newBlob.url)
+      for (const old of oldBlobs) {
+        await del(old.url).catch(() => {})
       }
+    } catch (cleanupErr) {
+      console.warn("Blob cleanup error (non-fatal):", cleanupErr)
     }
   } catch (err) {
     console.error(`Blob write error [${key}]:`, err)
+    throw err
   }
 }
 
