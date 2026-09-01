@@ -1021,22 +1021,34 @@ export default function AdminDashboardPage() {
                   <div className="border border-dashed border-border p-4 bg-secondary/20 text-center flex flex-col items-center justify-center gap-3">
                     {imageUrl ? (
                       <div className="w-full flex flex-col gap-3">
-                        <div className="relative w-full h-52 overflow-hidden border border-border group bg-secondary/30">
-                          <Image
-                            src={imageUrl}
-                            alt="Preview"
-                            fill
-                            style={{ objectPosition: `${coverPosX}% ${coverPosY}%` }}
-                            className="object-cover transition-all duration-150"
-                          />
-                          <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                            <span className="text-[10px] font-mono uppercase tracking-widest text-foreground">
-                              Click below to change photo
-                            </span>
+                        {/* Real Archive Card Simulation Box (Exact 4:5 Aspect Ratio) */}
+                        <div className="flex flex-col items-center">
+                          <div className="text-[10px] font-mono text-muted-foreground mb-1.5 flex justify-between w-full max-w-[340px]">
+                            <span>[ 📱 실제 아카이브 카드 1:1 동일 비율 미리보기 ]</span>
+                            <span className="text-emerald-400">4 : 5 프레임</span>
                           </div>
-                          {/* Live coordinate badge */}
-                          <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-md border border-border px-2 py-0.5 text-[10px] font-mono text-emerald-400">
-                            X: {coverPosX}% | Y: {coverPosY}%
+                          
+                          <div className="relative w-full max-w-[340px] aspect-[4/5] overflow-hidden border border-border group bg-secondary/30 shadow-lg">
+                            <Image
+                              src={imageUrl}
+                              alt="Preview"
+                              fill
+                              style={{ objectPosition: `${coverPosX}% ${coverPosY}%` }}
+                              className="object-cover transition-all duration-150"
+                            />
+                            <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                              <span className="text-[10px] font-mono uppercase tracking-widest text-foreground">
+                                Click below to change photo
+                              </span>
+                            </div>
+                            {/* Live coordinate badge */}
+                            <div className="absolute top-2 right-2 bg-background/90 backdrop-blur-md border border-border px-2 py-0.5 text-[10px] font-mono text-emerald-400">
+                              X: {coverPosX}% | Y: {coverPosY}%
+                            </div>
+                            {/* Visual center guide lines */}
+                            <div className="absolute inset-0 border border-white/5 pointer-events-none flex items-center justify-center">
+                              <div className="w-4 h-4 border border-dashed border-white/20 rounded-full"></div>
+                            </div>
                           </div>
                         </div>
 

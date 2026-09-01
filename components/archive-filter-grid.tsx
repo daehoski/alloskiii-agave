@@ -152,8 +152,8 @@ export function ArchiveFilterGrid({ initialPlants }: ArchiveFilterGridProps) {
                   </span>
                 </div>
 
-                {/* Image Thumbnail (Always latest photo) */}
-                <div className="relative w-full h-[360px] md:h-[440px] overflow-hidden mb-6 bg-secondary/20">
+                {/* Image Thumbnail (Always latest photo - Exact 4:5 Ratio) */}
+                <div className="relative w-full aspect-[4/5] overflow-hidden mb-6 bg-secondary/20">
                   <Image
                     src={displayImage}
                     alt={plant.title}
