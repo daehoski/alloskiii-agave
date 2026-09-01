@@ -80,7 +80,7 @@ export function JournalFilterGrid({ initialPosts }: JournalFilterGridProps) {
                     src={post.coverImage}
                     alt={post.title}
                     fill
-                    className="object-cover transition-transform duration-700 ease-out group-hover:scale-105 grayscale group-hover:grayscale-0"
+                    className="object-cover transition-transform duration-700 ease-out group-hover:scale-105 md:grayscale md:group-hover:grayscale-0"
                   />
                 </div>
               )}

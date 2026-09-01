@@ -68,7 +68,7 @@ export function ChaoticGallery({ items = INITIAL_PLANTS }: ChaoticGalleryProps) 
                     src={item.src || "/placeholder.svg"}
                     alt={item.title}
                     fill
-                    className="object-cover transition-transform duration-[1.5s] ease-in-out group-hover:scale-105 grayscale hover:grayscale-0"
+                    className="object-cover transition-transform duration-[1.5s] ease-in-out group-hover:scale-105 md:grayscale md:hover:grayscale-0"
                   />
 
                   {/* Overlay Lines */}

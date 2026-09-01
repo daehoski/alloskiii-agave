@@ -132,7 +132,7 @@ export default async function JournalDetailPage({ params }: Props) {
               alt={post.title}
               fill
               priority
-              className="object-cover grayscale hover:grayscale-0 transition-all duration-1000"
+              className="object-cover md:grayscale md:hover:grayscale-0 transition-all duration-1000"
             />
           </div>
         )}

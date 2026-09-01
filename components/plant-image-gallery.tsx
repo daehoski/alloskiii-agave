@@ -33,7 +33,7 @@ export function PlantImageGallery({ coverSrc, title, photos }: PlantImageGallery
           alt={`${title} - ${activePhoto.date}`}
           fill
           priority
-          className="object-cover transition-transform duration-1000 ease-out group-hover:scale-105 grayscale hover:grayscale-0"
+          className="object-cover transition-transform duration-1000 ease-out group-hover:scale-105 md:grayscale md:hover:grayscale-0"
         />
 
         {/* Date overlay badge on top-left of main photo */}
