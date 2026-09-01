@@ -38,7 +38,12 @@ export async function POST(request: Request) {
     const safeName = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}${ext}`
 
     // Use Vercel Blob if available (production), else local filesystem (dev)
-    if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const isVercel = Boolean(process.env.VERCEL || process.env.VERCEL_ENV || process.env.BLOB_READ_WRITE_TOKEN)
+    
+    if (isVercel) {
+      if (!process.env.BLOB_READ_WRITE_TOKEN) {
+        console.warn("BLOB_READ_WRITE_TOKEN is missing in Vercel environment! Falling back to Blob API anyway to trigger explicit error.")
+      }
       const blob = await put(`uploads/${safeName}`, buffer, {
         access: "public",
         addRandomSuffix: false,

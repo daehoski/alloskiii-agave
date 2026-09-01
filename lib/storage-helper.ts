@@ -4,7 +4,7 @@ import { put, list, del } from "@vercel/blob"
 
 // Check if Vercel Blob is available (production on Vercel)
 function isBlobAvailable(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN)
+  return Boolean(process.env.VERCEL || process.env.VERCEL_ENV || process.env.BLOB_READ_WRITE_TOKEN)
 }
 
 // ──────────────────────────────
