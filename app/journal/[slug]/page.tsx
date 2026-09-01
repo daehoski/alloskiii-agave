@@ -22,7 +22,8 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const post = await getPostBySlug(slug)
+  const decodedSlug = decodeURIComponent(slug)
+  const post = await getPostBySlug(decodedSlug) || await getPostBySlug(slug)
   if (!post) return { title: "Post Not Found" }
 
   return {
@@ -33,7 +34,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function JournalDetailPage({ params }: Props) {
   const { slug } = await params
-  const post = await getPostBySlug(slug)
+  const decodedSlug = decodeURIComponent(slug)
+  const post = await getPostBySlug(decodedSlug) || await getPostBySlug(slug)
 
   if (!post) {
     notFound()

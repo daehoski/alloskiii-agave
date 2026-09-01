@@ -24,7 +24,8 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
-  const specimen = await getPlantBySlug(slug)
+  const decodedSlug = decodeURIComponent(slug)
+  const specimen = await getPlantBySlug(decodedSlug) || await getPlantBySlug(slug)
   if (!specimen) return { title: "Plant Not Found" }
 
   return {
@@ -35,7 +36,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function SpecimenDetailPage({ params }: Props) {
   const { slug } = await params
-  const specimen = await getPlantBySlug(slug)
+  const decodedSlug = decodeURIComponent(slug)
+  const specimen = await getPlantBySlug(decodedSlug) || await getPlantBySlug(slug)
 
   if (!specimen) {
     notFound()
