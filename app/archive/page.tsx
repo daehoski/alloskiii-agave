@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   description: "Catalogue of Agave Titanota, Oteroi, Horrida, and Utahensis plants.",
 }
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export default function ArchivePage() {
   const plants = getAllPlants()
 

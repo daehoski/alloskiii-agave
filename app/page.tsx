@@ -4,6 +4,9 @@ import { ChaoticGallery } from "@/components/chaotic-gallery"
 import { Footer } from "@/components/footer"
 import { getAllPlants } from "@/lib/plants-db"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export default function Page() {
   const plants = getAllPlants()
 

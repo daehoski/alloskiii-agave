@@ -8,6 +8,9 @@ import { SpecimenInquiry } from "@/components/specimen-inquiry"
 import { PlantImageGallery } from "@/components/plant-image-gallery"
 import { getAllPlants, getPlantBySlug } from "@/lib/plants-db"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 interface Props {
   params: Promise<{ slug: string }>
 }

@@ -6,6 +6,9 @@ import { NavBar } from "@/components/nav-bar"
 import { Footer } from "@/components/footer"
 import { getAllPosts, getPostBySlug } from "@/lib/journal-db"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 interface Props {
   params: Promise<{ slug: string }>
 }

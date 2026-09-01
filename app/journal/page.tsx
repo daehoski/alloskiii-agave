@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   description: "Essays, cultivation insights, microclimate studies, and drop notices on Agave Titanota.",
 }
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export default function JournalPage() {
   const posts = getAllPosts()
 
