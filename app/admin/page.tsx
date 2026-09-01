@@ -1648,7 +1648,47 @@ export default function AdminDashboardPage() {
                     rows={12}
                     value={journalContent}
                     onChange={(e) => setJournalContent(e.target.value)}
-                    placeholder="Write your cultivation notes, tips, substrate recipes, or notices here...\n\n- ### Heading 3\n- ## Heading 2\n- * bullet list\n- 1. number list"
+                    onPaste={async (e) => {
+                      const items = e.clipboardData?.items
+                      if (!items) return
+                      const imageItem = Array.from(items).find(item => item.type.startsWith("image/"))
+                      if (!imageItem) return
+                      
+                      const file = imageItem.getAsFile()
+                      if (!file) return
+                      
+                      e.preventDefault()
+                      setFeedback({ type: "info", message: "Uploading pasted image..." })
+                      
+                      const formData = new FormData()
+                      formData.append("file", file)
+                      
+                      try {
+                        const res = await fetch("/api/upload", { method: "POST", body: formData })
+                        const data = await res.json()
+                        if (res.ok && data.url) {
+                          const textarea = e.target as HTMLTextAreaElement
+                          const start = textarea.selectionStart
+                          const end = textarea.selectionEnd
+                          const text = textarea.value
+                          const insertStr = `\n\n![클립보드 이미지](${data.url})\n\n`
+                          const newText = text.substring(0, start) + insertStr + text.substring(end)
+                          
+                          setJournalContent(newText)
+                          setFeedback({ type: "success", message: "Pasted image inserted!" })
+                          
+                          setTimeout(() => {
+                            textarea.focus()
+                            textarea.selectionStart = textarea.selectionEnd = start + insertStr.length
+                          }, 0)
+                        } else {
+                          throw new Error(data.error || "Upload failed")
+                        }
+                      } catch (err: any) {
+                        setFeedback({ type: "error", message: err.message })
+                      }
+                    }}
+                    placeholder="Write your cultivation notes, tips, substrate recipes, or notices here...\n\n- ### Heading 3\n- ## Heading 2\n- * bullet list\n- 1. number list\n(💡 Tip: You can paste images directly from your clipboard!)"
                     required
                     className="w-full bg-secondary/20 border border-border p-3.5 text-foreground leading-relaxed font-sans placeholder:text-muted-foreground/60 focus:outline-none focus:border-foreground transition-colors font-light"
                   />
