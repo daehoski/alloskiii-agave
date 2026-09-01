@@ -48,6 +48,35 @@ export default async function JournalDetailPage({ params }: Props) {
 
   // Render paragraphs and headers
   const renderFormattedContent = (raw: string) => {
+    const parseInlineLinks = (text: string) => {
+      const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g
+      const parts = []
+      let lastIndex = 0
+      let match
+
+      while ((match = linkRegex.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+          parts.push(text.substring(lastIndex, match.index))
+        }
+        parts.push(
+          <a
+            key={match.index}
+            href={match[2]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-emerald-400 hover:text-emerald-300 underline underline-offset-4 decoration-emerald-500/30 transition-colors"
+          >
+            {match[1]}
+          </a>
+        )
+        lastIndex = linkRegex.lastIndex
+      }
+      if (lastIndex < text.length) {
+        parts.push(text.substring(lastIndex))
+      }
+      return parts.length > 0 ? parts : text
+    }
+
     const lines = raw.split("\n")
     return lines.map((line, idx) => {
       const trimmed = line.trim()
@@ -68,14 +97,14 @@ export default async function JournalDetailPage({ params }: Props) {
       if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
         return (
           <li key={idx} className="ml-6 list-disc text-sm md:text-base leading-relaxed text-muted-foreground my-1.5 font-light">
-            {trimmed.replace(/^[\*\-]\s+/, "")}
+            {parseInlineLinks(trimmed.replace(/^[\*\-]\s+/, ""))}
           </li>
         )
       }
       if (/^\d+\.\s+/.test(trimmed)) {
         return (
           <li key={idx} className="ml-6 list-decimal text-sm md:text-base leading-relaxed text-muted-foreground my-1.5 font-light">
-            {trimmed.replace(/^\d+\.\s+/, "")}
+            {parseInlineLinks(trimmed.replace(/^\d+\.\s+/, ""))}
           </li>
         )
       }
@@ -105,7 +134,7 @@ export default async function JournalDetailPage({ params }: Props) {
       }
       return (
         <p key={idx} className="text-sm md:text-base leading-relaxed text-muted-foreground/90 font-light my-2">
-          {trimmed}
+          {parseInlineLinks(trimmed)}
         </p>
       )
     })
