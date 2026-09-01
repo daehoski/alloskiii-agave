@@ -12,7 +12,10 @@ function isBlobAvailable(): boolean {
 // ──────────────────────────────
 async function readBlobJson<T>(key: string, defaultData: T): Promise<T> {
   try {
-    const { blobs } = await list({ prefix: key })
+    // If key is 'data/plants.json', list with prefix 'data/plants' to match 'data/plants-xyz.json'
+    const prefix = key.endsWith('.json') ? key.slice(0, -5) : key
+    const { blobs } = await list({ prefix })
+    
     if (!blobs || blobs.length === 0) return defaultData
 
     // Sort to get the latest blob
@@ -49,7 +52,8 @@ async function writeBlobJson<T>(key: string, data: T): Promise<void> {
 
     // 2. Clean up previous versions (keep only the newest one)
     try {
-      const { blobs } = await list({ prefix: key })
+      const prefix = key.endsWith('.json') ? key.slice(0, -5) : key
+      const { blobs } = await list({ prefix })
       const oldBlobs = blobs.filter((b) => b.url !== newBlob.url)
       for (const old of oldBlobs) {
         await del(old.url).catch(() => {})
