@@ -37,7 +37,7 @@ export async function logPageView(data: {
   try {
     const events = await readStorageJson<PageViewEvent[]>(ANALYTICS_FILE, [])
     const now = new Date()
-    const dateStr = now.toISOString().slice(0, 10)
+    const dateStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(now)
     const rawReferrer = (data.referrer || "").toLowerCase()
 
     let referrerType = "Direct / Link"
@@ -81,7 +81,7 @@ export async function logPageView(data: {
 export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
   try {
     const events = await readStorageJson<PageViewEvent[]>(ANALYTICS_FILE, [])
-    const todayStr = new Date().toISOString().slice(0, 10)
+    const todayStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date())
     const todayEvents = events.filter((e) => e.date === todayStr)
 
     const todayUniqueVisitors = new Set(todayEvents.map((e) => e.visitorHash)).size
@@ -95,7 +95,7 @@ export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
     for (let i = 6; i >= 0; i--) {
       const d = new Date()
       d.setDate(d.getDate() - i)
-      const ds = d.toISOString().slice(0, 10)
+      const ds = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(d)
       dailyMap[ds] = { views: 0, hashes: new Set() }
     }
 
@@ -135,7 +135,12 @@ export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
         path: e.path,
         referrer: e.referrer,
         device: e.device,
-        time: new Date(e.timestamp).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+        time: new Date(e.timestamp).toLocaleTimeString("ko-KR", { 
+          timeZone: "Asia/Seoul", 
+          hour: "2-digit", 
+          minute: "2-digit", 
+          second: "2-digit" 
+        }),
       })),
       dailyViews,
     }
