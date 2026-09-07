@@ -1,4 +1,4 @@
-﻿import fs from 'fs'
+import fs from 'fs'
 import path from 'path'
 import { createClient } from '@supabase/supabase-js'
 
@@ -8,10 +8,10 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 
 async function readSupabaseJson<T>(fileName: string, defaultData: T): Promise<T> {
   try {
-    const { data: fileData, error: fileError } = await supabase.storage.from('data').download(fileName)
-    if (fileError || !fileData) return defaultData
-    const text = await fileData.text()
-    return JSON.parse(text)
+    const url = `${supabaseUrl}/storage/v1/object/public/data/${fileName}?t=${Date.now()}`
+    const res = await fetch(url, { cache: 'no-store' })
+    if (!res.ok) return defaultData
+    return await res.json()
   } catch (err) {
     return defaultData
   }

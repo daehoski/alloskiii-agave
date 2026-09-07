@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import path from 'path'
 import crypto from 'crypto'
 import { getCurrentUser } from '@/lib/auth'
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       } catch (convErr) {}
     }
 
-    const safeName = \\-\\\`n
+    const safeName = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ext}`
     const { data, error } = await supabase.storage.from('uploads').upload(safeName, buffer, {
       contentType: file.type || 'image/jpeg',
       upsert: true
