@@ -1,66 +1,51 @@
-import { NextResponse } from "next/server"
-import { put } from "@vercel/blob"
-import path from "path"
-import fs from "fs"
-import crypto from "crypto"
-import { getCurrentUser } from "@/lib/auth"
+﻿import { NextResponse } from 'next/server'
+import path from 'path'
+import crypto from 'crypto'
+import { getCurrentUser } from '@/lib/auth'
+import { createClient } from '@supabase/supabase-js'
 
-export const dynamic = "force-dynamic"
+export const dynamic = 'force-dynamic'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qdoygusrcykspccoaqbq.supabase.co'
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkb3lndXNyY3lrc3BjY29hcWJxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4ODc2OTIxMywiZXhwIjoyMTA0MzQ1MjEzfQ.fdikAfewSqEQkJ8pqfG1-sWPFu72GInKKwuy9_3AOB4'
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser()
-    if (!user || user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 403 })
+    if (!user || user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized: Admin access required' }, { status: 403 })
     }
 
     const formData = await request.formData()
-    const file = formData.get("file") as File | null
+    const file = formData.get('file') as File | null
     if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 })
+      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    let buffer: Buffer = Buffer.from(await file.arrayBuffer())
-    let ext = path.extname(file.name).toLowerCase() || ".jpg"
+    let buffer = Buffer.from(await file.arrayBuffer())
+    let ext = path.extname(file.name).toLowerCase() || '.jpg'
 
-    // HEIC/HEIF auto-conversion
-    if (ext === ".heic" || ext === ".heif") {
+    if (ext === '.heic' || ext === '.heif') {
       try {
-        const heicConvert = (await import("heic-convert")).default
-        const converted = await heicConvert({ buffer, format: "JPEG", quality: 0.88 })
+        const heicConvert = (await import('heic-convert')).default
+        const converted = await heicConvert({ buffer, format: 'JPEG', quality: 0.88 })
         buffer = Buffer.from(converted)
-        ext = ".jpg"
-      } catch (convErr) {
-        console.error("HEIC conversion error:", convErr)
-      }
+        ext = '.jpg'
+      } catch (convErr) {}
     }
 
-    const safeName = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}${ext}`
+    const safeName = \\-\\\`n
+    const { data, error } = await supabase.storage.from('uploads').upload(safeName, buffer, {
+      contentType: file.type || 'image/jpeg',
+      upsert: true
+    })
+    if (error) throw error
 
-    // Use Vercel Blob if available (production), else local filesystem (dev)
-    const isVercel = Boolean(process.env.VERCEL || process.env.VERCEL_ENV || process.env.BLOB_READ_WRITE_TOKEN)
-    
-    if (isVercel) {
-      if (!process.env.BLOB_READ_WRITE_TOKEN) {
-        console.warn("BLOB_READ_WRITE_TOKEN is missing in Vercel environment! Falling back to Blob API anyway to trigger explicit error.")
-      }
-      const blob = await put(`uploads/${safeName}`, buffer, {
-        access: "public",
-        addRandomSuffix: false,
-        contentType: file.type || "image/jpeg",
-      })
-      return NextResponse.json({ success: true, url: blob.url })
-    } else {
-      const uploadDir = path.join(process.cwd(), "public", "uploads")
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true })
-      }
-      const filePath = path.join(uploadDir, safeName)
-      fs.writeFileSync(filePath, buffer)
-      return NextResponse.json({ success: true, url: `/uploads/${safeName}` })
-    }
+    const { data: publicUrlData } = supabase.storage.from('uploads').getPublicUrl(safeName)
+    return NextResponse.json({ success: true, url: publicUrlData.publicUrl })
   } catch (error: any) {
-    console.error("Upload error:", error)
-    return NextResponse.json({ error: error.message || "Upload failed" }, { status: 500 })
+    return NextResponse.json({ error: error.message || 'Upload failed' }, { status: 500 })
   }
 }
+
